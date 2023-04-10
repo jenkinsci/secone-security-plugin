@@ -1,0 +1,47 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
+    <f:entry title="${%scmUrlTitle}" field="scmUrl">
+        <f:textbox />
+    </f:entry>
+  <!--  <f:entry title="${%instanceUrlTitle}" field="instanceUrl">
+        <f:textbox />
+    </f:entry> -->
+    <f:entry title="${%credentials}" field="credentialsId">
+        <c:select expressionAllowed="${expressionAllowed}"/>
+    </f:entry>
+  <!--  <f:entry name="scm" title="${%scmTitle}" field="scm">
+        <select name="scm">
+            <option value="github" selected="${instance.scm.equalsIgnoreCase('Github')? true:null}">Github</option>
+            <option value="bitbucket" selected="${instance.scm.equalsIgnoreCase('Bitbucket')? true:null}">Bitbucket</option>
+            <option value="gitlabs" selected="${instance.scm.equalsIgnoreCase('Gitlabs')? true:null}">Gitlabs</option>
+        </select>
+    </f:entry> -->
+    <f:optionalBlock title="${%thresholdTitle}" field="threshold" checked="${instance.threshold != null}">
+        <f:block>
+            <table style="padding-left:2%; width:100%;">
+                <tr>
+                    <td>
+                        <f:entry title="${%criticalThresholdTitle}" field="criticalThreshold"> 
+                            <f:textbox default="0" value="${instance.threshold.criticalThreshold}"/>
+                        </f:entry>
+                    </td>
+                    <td>
+                        <f:entry title="${%highThresholdTitle}" field="highThreshold">
+                            <f:textbox default="0" value="${instance.threshold.highThreshold}"/>
+                        </f:entry>
+                    </td>
+                    <td>
+                        <f:entry title="${%mediumThresholdTitle}" field="mediumThreshold">
+                            <f:textbox default="0" value="${instance.threshold.mediumThreshold}"/>
+                        </f:entry>
+                    </td>
+                    <td>
+                        <f:entry title="${%lowThresholdTitle}" field="lowThreshold">
+                            <f:textbox default="0" value="${instance.threshold.lowThreshold}"/>
+                        </f:entry>
+                    </td>
+                </tr>
+            </table>
+        </f:block>
+    </f:optionalBlock>
+</j:jelly>
