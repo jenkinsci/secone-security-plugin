@@ -1,6 +1,6 @@
 # SECONE Security
 
-[![SECONE](https://sec1.io/wp-content/uploads/2023/10/sec1-logo-svg-orange.svg) =250x](https://sec1.io)
+[![SECONE](https://sec1.io/wp-content/uploads/2023/10/sec1-logo-svg-orange.svg =250x)](https://sec1.io)
 
 ## Introduction
 
@@ -10,7 +10,7 @@ SECONE Security plugin help developers/teams to scan their SCM for open source v
 To use the plugin up you will need to take the following steps in order:
 
 1. [Install the SECONE Security Plugin](#1-install-the-secone-security-plugin)
-2. [Configure a SECONE API Token Credential](#3-configure-a-secone-api-token-credential)
+2. [Configure a SECONE API Token Credential](#2-configure-a-secone-api-token-credential)
 
 ## 1. Install the SECONE Security Plugin
 
