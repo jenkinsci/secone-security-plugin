@@ -1,6 +1,6 @@
 # SECONE Security
 
-[![SECONE](https://sec1.io/wp-content/uploads/2023/10/sec1-logo-svg-orange.svg =250x)](https://sec1.io)
+[![SECONE](https://sec1.io/wp-content/uploads/2023/10/sec1-logo-svg-orange.svg)](https://sec1.io)
 <a href="https://sec1.io">
   <img src="https://sec1.io/wp-content/uploads/2023/10/sec1-logo-svg-orange.svg" alt="SECONE" width="200" height="100">
 </a>
