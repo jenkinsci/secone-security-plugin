@@ -1,4 +1,4 @@
-package com.dottribe.foss.resilient.jenkins.plugin;
+package io.secone.foss.jenkins.plugin;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -14,6 +14,7 @@ import javax.inject.Inject;
 
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.Symbol;
+import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.json.JSONObject;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -33,8 +34,8 @@ import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
+import com.cloudbees.plugins.credentials.impl.BaseStandardCredentials;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
-import com.dottribe.foss.resilient.jenkins.plugin.pojo.Threshold;
 
 import hudson.AbortException;
 import hudson.EnvVars;
@@ -59,18 +60,19 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import io.secone.foss.jenkins.plugin.pojo.Threshold;
 import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
 
-public class SecurityDeepScannerPlugin extends Builder implements SimpleBuildStep {
+public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 
-	private static final Logger logger = LoggerFactory.getLogger(SecurityDeepScannerPlugin.class);
+	private static final Logger logger = LoggerFactory.getLogger(SecOneScannerPlugin.class);
 
 	private static final String SCAN_API = "/scan-post";
 
-	private static final String INSTANCE_URL = "SECURITYDEEP_INSTANCE_URL";
+	private static final String INSTANCE_URL = "SECONE_INSTANCE_URL";
 
-	private static final String API_KEY = "SECURITYDEEP_API_KEY";
+	private static final String API_KEY = "SECONE_API_KEY";
 
 	private static final String API_KEY_HEADER = "x-api-key";
 
@@ -86,7 +88,7 @@ public class SecurityDeepScannerPlugin extends Builder implements SimpleBuildSte
 	private String accessToken;
 
 	@DataBoundConstructor
-	public SecurityDeepScannerPlugin(String scmUrl, String scm) {
+	public SecOneScannerPlugin(String scmUrl, String scm) {
 		this.scmUrl = scmUrl;
 		this.scm = scm;
 	}
@@ -156,13 +158,13 @@ public class SecurityDeepScannerPlugin extends Builder implements SimpleBuildSte
 
 		String fossInstanceUrl = env.get(INSTANCE_URL);
 
-		String apiKey = env.get(API_KEY);
+		String apiKey = getApiKey();
 
 		if (threshold != null) {
 			applyThreshold = true;
 		}
-		performScan(build.getAllActions(), build.getCauses(), build.getProject(), listener, fossInstanceUrl, apiKey, applyThreshold);
-
+		performScan(build.getAllActions(), build.getCauses(), build.getProject(), listener, fossInstanceUrl, apiKey,
+				applyThreshold);
 		return true;
 	}
 
@@ -172,9 +174,24 @@ public class SecurityDeepScannerPlugin extends Builder implements SimpleBuildSte
 
 		String fossInstanceUrl = env.get(INSTANCE_URL);
 
-		String apiKey = env.get(API_KEY);
-
+		String apiKey = getApiKey();
 		performScan(run.getAllActions(), run.getCauses(), null, listener, fossInstanceUrl, apiKey, applyThreshold);
+	}
+
+	private String getApiKey() {
+		StandardCredentials credentials = CredentialsMatchers.firstOrNull(
+				CredentialsProvider.lookupCredentials(StandardCredentials.class, Jenkins.getInstanceOrNull(),
+						ACL.SYSTEM, Collections.emptyList()),
+				CredentialsMatchers.withId(API_KEY));
+
+		if (credentials instanceof BaseStandardCredentials) {
+			String apiKey = ((StringCredentials) credentials).getSecret().getPlainText();
+		    
+		    //String apiKey = secret.getPlainText();
+			return apiKey;
+
+		}
+		return null;
 	}
 
 	@Override
@@ -184,15 +201,18 @@ public class SecurityDeepScannerPlugin extends Builder implements SimpleBuildSte
 	}
 
 	private void performScan(List<? extends Action> actionList, List<Cause> causes, AbstractProject<?, ?> buildProject,
-			TaskListener listener, String fossInstanceUrl, String apiKey, boolean applyThreshold) throws AbortException {
+			TaskListener listener, String fossInstanceUrl, String apiKey, boolean applyThreshold)
+			throws AbortException {
 
 		String scanUrl = StringUtils.isBlank(instanceUrl) ? fossInstanceUrl + SCAN_API : instanceUrl + SCAN_API;
 
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
-		if (StringUtils.isNotBlank(apiKey)) {
-			headers.set(API_KEY_HEADER, apiKey);
+		if (StringUtils.isBlank(apiKey)) {
+			throw new AbortException(
+					"API Key not configured. Please check your configuration. Add SECONE_API_KEY in credentials if missing.");
 		}
+		headers.set(API_KEY_HEADER, apiKey);
 		List<String> scmUrlList = new ArrayList<>();
 		if (StringUtils.isBlank(scmUrl) && !CollectionUtils.isEmpty(actionList)) {
 			actionList.forEach(action -> {
@@ -231,13 +251,13 @@ public class SecurityDeepScannerPlugin extends Builder implements SimpleBuildSte
 		if (StringUtils.isBlank(accessTokenStr)) {
 			accessTokenStr = getCredentials(credentialsId, userId.toString());
 		}
-		listener.getLogger().println("cred    : " + accessTokenStr);
+		// listener.getLogger().println("cred : " + accessTokenStr);
 		if (StringUtils.isNotBlank(accessTokenStr)) {
 			inputParamsMap.put("accessToken", accessTokenStr);
 		}
 
-		listener.getLogger().println("==================== SCAN CONFIG ====================");
-		listener.getLogger().println("Scan Instance Url     : " + scanUrl);
+		listener.getLogger().println("==================== SECONE SCAN CONFIG ====================");
+		// listener.getLogger().println("Scan Instance Url : " + scanUrl);
 		listener.getLogger().println("SCM Url               : " + scmUrl);
 		listener.getLogger().println("User                  : " + userId);
 		listener.getLogger().println("Threshold Enabled     : " + applyThreshold);
@@ -271,7 +291,7 @@ public class SecurityDeepScannerPlugin extends Builder implements SimpleBuildSte
 						? responseJson.getJSONObject("cveCountDetails").optInt("LOW")
 						: 0;
 
-				listener.getLogger().println("==================== SCAN Result ====================");
+				listener.getLogger().println("==================== SECONE SCAN Result ====================");
 				if (StringUtils.isBlank(responseJson.optString("errorMessage"))) {
 					listener.getLogger().println("Vulnerabilities       : " + "Critical = " + critical + "," + "High = "
 							+ high + "," + "Medium = " + medium + "," + "Low = " + low);
@@ -279,6 +299,9 @@ public class SecurityDeepScannerPlugin extends Builder implements SimpleBuildSte
 							.println("RAG Status            : " + responseJson.optString("overallRagStatus"));
 
 					listener.getLogger().println("Report Url            : " + responseJson.optString("reportUrl"));
+
+					listener.getLogger().println("=====================================================");
+
 					if (applyThreshold) {
 						try {
 							if (critical != 0 && critical > Integer.parseInt(threshold.getCriticalThreshold())) {
@@ -295,16 +318,16 @@ public class SecurityDeepScannerPlugin extends Builder implements SimpleBuildSte
 								throw new AbortException("Low Vulnerability Threshold breached.");
 							}
 						} catch (NumberFormatException ex) {
-							listener.getLogger().println(
+							listener.error(
 									"Check values configured for vulnerability threshold. Only numbers are allowed.");
 						} catch (AbortException ex) {
 							throw ex;
 						}
 					}
 				} else {
-					listener.getLogger().println("Error Details : " + responseJson.optString("errorMessage"));
+					listener.error("Error Details : " + responseJson.optString("errorMessage"));
 				}
-				listener.getLogger().println("=====================================================");
+
 			}
 		}
 
@@ -360,13 +383,13 @@ public class SecurityDeepScannerPlugin extends Builder implements SimpleBuildSte
 		return base64EncodedToken;
 	}
 
-	@Symbol("secdeep")
+	@Symbol("secone")
 	@Extension
 	public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
 
 		@DataBoundConstructor
 		public DescriptorImpl() {
-			super(SecurityDeepScannerPlugin.class);
+			super(SecOneScannerPlugin.class);
 		}
 
 		public FormValidation doCheckScmUrl(@QueryParameter String value, @QueryParameter String instanceUrl) {
@@ -420,7 +443,7 @@ public class SecurityDeepScannerPlugin extends Builder implements SimpleBuildSte
 
 		@Override
 		public String getDisplayName() {
-			return "Execute Securitydeep FOSS Scanner";
+			return "Execute SecOne FOSS Scanner";
 		}
 	}
 }

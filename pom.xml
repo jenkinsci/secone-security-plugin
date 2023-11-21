@@ -3,12 +3,12 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<groupId>com.dottribe.foss.resilient.jenkins.plugin</groupId>
-	<artifactId>securitydeep-plugin</artifactId>
+	<groupId>io.secone.foss.jenkins.plugin</groupId>
+	<artifactId>secone-security-plugin</artifactId>
 	<version>1.0.0-SNAPSHOT</version>
-	<name>securitydeep</name>
+	<name>secone-security</name>
 	<packaging>hpi</packaging>
-	<description>Jenkins plugin to for securitydeep</description>
+	<description>SecOne Security Jenkins plugin for foss scanning</description>
 
 	<parent>
 		<groupId>org.jenkins-ci.plugins</groupId>

@@ -1,4 +1,4 @@
-package com.dottribe.foss.resilient.jenkins.plugin;
+package io.secone.foss.jenkins.plugin;
 
 import hudson.model.AbstractProject;
 import hudson.tasks.BuildStepDescriptor;

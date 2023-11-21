@@ -1,26 +1,31 @@
-# resilient-foss-jenkins-plugin
+# SECONE Security
+
+[![SECONE](https://sec1.io/wp-content/uploads/2023/11/sec1-logo-svg-orange-inverse.svg)](https://sec1.io)
 
 ## Introduction
 
-TODO Describe what your plugin does here
+SECONE Security plugin help developers/teams to scan their SCM for open source vulnerabilities against SECONE Security DB
 
-## Getting started
+## Usage
+To use the plugin up you will need to take the following steps in order:
 
-TODO Tell users how to configure your plugin here, include screenshots, pipeline examples and 
-configuration-as-code examples.
+1. [Install the SECONE Security Plugin](#1-install-the-secone-security-plugin)
+2. [Configure a SECONE API Token Credential](#3-configure-a-secone-api-token-credential)
 
-## Issues
+## 1. Install the SECONE Security Plugin
 
-TODO Decide where you're going to host your issues, the default is Jenkins JIRA, but you can also enable GitHub issues,
-If you use GitHub issues there's no need for this section; else add the following line:
+- Go to "Manage Jenkins" > "Manage Plugins" > "Available".
+- Search for "SECONE Security".
+- Install the plugin.
 
-Report issues and enhancements in the [Jenkins issue tracker](https://issues.jenkins-ci.org/).
+## 2. Configure a SECONE API Token Credential
 
-## Contributing
-
-TODO review the default [CONTRIBUTING](https://github.com/jenkinsci/.github/blob/master/CONTRIBUTING.md) file and make sure it is appropriate for your plugin, if not then add your own one adapted from the base file
-
-Refer to our [contribution guidelines](https://github.com/jenkinsci/.github/blob/master/CONTRIBUTING.md)
+- Go to "Manage Jenkins" > "Manage Credentials"
+- Choose a Store
+- Choose a Domain
+- Go to "Add Credentials"
+- Select "Secret text"
+- Add SECONE_API_KEY as ID and Configure the Credentials
 
 ## LICENSE
 
