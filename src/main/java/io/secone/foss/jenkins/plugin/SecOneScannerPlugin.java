@@ -68,7 +68,7 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 
 	private static final Logger logger = LoggerFactory.getLogger(SecOneScannerPlugin.class);
 
-	private static final String SCAN_API = "/scan-post";
+	private static final String SCAN_API = "/scan";
 
 	private static final String INSTANCE_URL = "SECONE_INSTANCE_URL";
 
@@ -186,8 +186,8 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 
 		if (credentials instanceof BaseStandardCredentials) {
 			String apiKey = ((StringCredentials) credentials).getSecret().getPlainText();
-		    
-		    //String apiKey = secret.getPlainText();
+
+			// String apiKey = secret.getPlainText();
 			return apiKey;
 
 		}
@@ -231,8 +231,17 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 
 		// Descriptor creds = CredentialsProvider.findById(null, credentialsId);
 		StringBuilder userId = new StringBuilder("system");
+		StringBuilder appName = new StringBuilder();
+		try {
+			appName.append(getSubUrl(scmUrl));
+		} catch (Exception ex) {
+			logger.error("Error - extracting app name from url");
+			logger.info("Issue extracting app name from url, setting it to default");
+			appName = new StringBuilder(scmUrl);
+		}
 		inputParamsMap.put("urlType", scm);
-		inputParamsMap.put("appName", "jenkins-app");
+		inputParamsMap.put("appName", appName);
+		inputParamsMap.put("source", "jenkins");
 		// List<?> causes = build.getCauses();
 		if (causes != null && causes.size() > 0) {
 			causes.forEach(cause -> {
@@ -445,5 +454,16 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		public String getDisplayName() {
 			return "Execute SecOne FOSS Scanner";
 		}
+	}
+
+	private String getSubUrl(String scmUrl) throws MalformedURLException {
+		URL apiUrl = new URL(scmUrl);
+
+		int subUrlLocation = StringUtils.indexOf(scmUrl, apiUrl.getHost()) + apiUrl.getHost().length() + 1;
+		if (apiUrl.getPort() != -1) {
+			subUrlLocation = StringUtils.indexOf(scmUrl, apiUrl.getHost()) + apiUrl.getHost().length()
+					+ String.valueOf(apiUrl.getPort()).length() + 1;
+		}
+		return StringUtils.substring(scmUrl, subUrlLocation);
 	}
 }
