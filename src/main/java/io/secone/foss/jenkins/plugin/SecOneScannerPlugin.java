@@ -68,13 +68,15 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 
 	private static final Logger logger = LoggerFactory.getLogger(SecOneScannerPlugin.class);
 
+	private static final String API_CONTEXT = "/rest/foss";
+
 	private static final String SCAN_API = "/scan";
 
-	private static final String INSTANCE_URL = "SECONE_INSTANCE_URL";
+	private static final String INSTANCE_URL = "SEC1_INSTANCE_URL";
 
-	private static final String API_KEY = "SECONE_API_KEY";
+	private static final String API_KEY = "SEC1_API_KEY";
 
-	private static final String API_KEY_HEADER = "x-api-key";
+	private static final String API_KEY_HEADER = "sec1-api-key";
 
 	private String scmUrl;
 	private String scm;
@@ -154,9 +156,8 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 	@Override
 	public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener)
 			throws IOException, InterruptedException {
-		EnvVars env = build.getEnvironment(listener);
 
-		String fossInstanceUrl = env.get(INSTANCE_URL);
+		String fossInstanceUrl = getInstanceUrl(build.getEnvironment(listener), listener);
 
 		String apiKey = getApiKey();
 
@@ -168,11 +169,21 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		return true;
 	}
 
+	private String getInstanceUrl(EnvVars envVars, TaskListener listener) {
+		String instanceUrl = envVars.get(INSTANCE_URL);
+		if (StringUtils.isNotBlank(instanceUrl)) {
+			listener.getLogger().println("SEC1_INSTANCE_URL : " + instanceUrl);
+			return instanceUrl;
+		}
+		listener.getLogger().println("No SEC1_INSTANCE_URL set. Using default : https://api.sec1.io");
+		return "https://api.sec1.io";
+	}
+
 	@Override
 	public void perform(Run<?, ?> run, FilePath workspace, EnvVars env, Launcher launcher, TaskListener listener)
 			throws InterruptedException, IOException {
 
-		String fossInstanceUrl = env.get(INSTANCE_URL);
+		String fossInstanceUrl = getInstanceUrl(env, listener);
 
 		String apiKey = getApiKey();
 		performScan(run.getAllActions(), run.getCauses(), null, listener, fossInstanceUrl, apiKey, applyThreshold);
@@ -186,7 +197,6 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 
 		if (credentials instanceof BaseStandardCredentials) {
 			String apiKey = ((StringCredentials) credentials).getSecret().getPlainText();
-
 			// String apiKey = secret.getPlainText();
 			return apiKey;
 
@@ -204,13 +214,14 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 			TaskListener listener, String fossInstanceUrl, String apiKey, boolean applyThreshold)
 			throws AbortException {
 
-		String scanUrl = StringUtils.isBlank(instanceUrl) ? fossInstanceUrl + SCAN_API : instanceUrl + SCAN_API;
+		String scanUrl = StringUtils.isBlank(instanceUrl) ? fossInstanceUrl + API_CONTEXT + SCAN_API
+				: instanceUrl + API_CONTEXT + SCAN_API;
 
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
 		if (StringUtils.isBlank(apiKey)) {
 			throw new AbortException(
-					"API Key not configured. Please check your configuration. Add SECONE_API_KEY in credentials if missing.");
+					"API Key not configured. Please check your configuration. Add SEC1_API_KEY in credentials if missing.");
 		}
 		headers.set(API_KEY_HEADER, apiKey);
 		List<String> scmUrlList = new ArrayList<>();
@@ -235,7 +246,7 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		try {
 			appName.append(getSubUrl(scmUrl));
 		} catch (Exception ex) {
-			logger.error("Error - extracting app name from url");
+			logger.error("Error - extracting app name from url", ex);
 			logger.info("Issue extracting app name from url, setting it to default");
 			appName = new StringBuilder(scmUrl);
 		}
@@ -253,7 +264,7 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 			});
 
 		}
-		inputParamsMap.put("userId", userId);
+		//inputParamsMap.put("userId", userId);
 		String accessTokenStr = StringUtils.isNotBlank(accessToken)
 				? Base64.getEncoder().encodeToString((accessToken).getBytes(Charset.forName("UTF-8")))
 				: getCredentialsFromScm(scmUrl, buildProject);
@@ -265,7 +276,7 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 			inputParamsMap.put("accessToken", accessTokenStr);
 		}
 
-		listener.getLogger().println("==================== SECONE SCAN CONFIG ====================");
+		listener.getLogger().println("==================== SEC1 SCAN CONFIG ====================");
 		// listener.getLogger().println("Scan Instance Url : " + scanUrl);
 		listener.getLogger().println("SCM Url               : " + scmUrl);
 		listener.getLogger().println("User                  : " + userId);
@@ -300,7 +311,7 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 						? responseJson.getJSONObject("cveCountDetails").optInt("LOW")
 						: 0;
 
-				listener.getLogger().println("==================== SECONE SCAN Result ====================");
+				listener.getLogger().println("==================== SEC1 SCAN Result ====================");
 				if (StringUtils.isBlank(responseJson.optString("errorMessage"))) {
 					listener.getLogger().println("Vulnerabilities       : " + "Critical = " + critical + "," + "High = "
 							+ high + "," + "Medium = " + medium + "," + "Low = " + low);
@@ -346,11 +357,10 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		String base64EncodedToken = "";
 		if (buildProject != null && buildProject.getScm() instanceof GitSCM) {
 			GitSCM gitScm = (GitSCM) buildProject.getScm();
-			logger.info("Getting creds for : {}", gitScm);
 			for (UserRemoteConfig userRemoteConfig : gitScm.getUserRemoteConfigs()) {
 				if (userRemoteConfig != null && StringUtils.equals(userRemoteConfig.getUrl(), scmUrl)) {
+					logger.info("Getting creds for : {}", userRemoteConfig.getCredentialsId());
 					String credentialsId = userRemoteConfig.getCredentialsId();
-					logger.info("Cred Id found : {}", credentialsId);
 					if (StringUtils.isNotBlank(credentialsId)) {
 						StandardCredentials credentials = CredentialsMatchers.firstOrNull(
 								CredentialsProvider.lookupCredentials(StandardCredentials.class, buildProject,
@@ -392,7 +402,7 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		return base64EncodedToken;
 	}
 
-	@Symbol("secone")
+	@Symbol("sec1")
 	@Extension
 	public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
 
@@ -452,7 +462,7 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 
 		@Override
 		public String getDisplayName() {
-			return "Execute SecOne FOSS Scanner";
+			return "Execute Sec1 FOSS Scanner";
 		}
 	}
 
@@ -466,4 +476,4 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		}
 		return StringUtils.substring(scmUrl, subUrlLocation);
 	}
-}
+};

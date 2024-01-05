@@ -4,11 +4,11 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>io.secone.foss.jenkins.plugin</groupId>
-	<artifactId>secone-security-plugin</artifactId>
+	<artifactId>sec1-security-plugin</artifactId>
 	<version>1.0.0-SNAPSHOT</version>
-	<name>secone-security</name>
+	<name>sec1-security</name>
 	<packaging>hpi</packaging>
-	<description>SecOne Security Jenkins plugin for foss scanning</description>
+	<description>Sec1 Security Jenkins plugin for foss scanning</description>
 
 	<parent>
 		<groupId>org.jenkins-ci.plugins</groupId>
