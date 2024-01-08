@@ -1,8 +1,6 @@
 # SEC1 Security
 
-<a href="https://sec1.io">
-  <img src="https://sec1.io/wp-content/uploads/2023/10/sec1-logo-svg-orange.svg" alt="SEC1" width="200" height="100">
-</a>
+[![Sec1](https://sec1.io/wp-content/uploads/2024/01/sec1-logo-rounded.png)](https://sec1.io)
 
 ## Introduction
 
