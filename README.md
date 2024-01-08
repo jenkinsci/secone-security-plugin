@@ -20,15 +20,14 @@ To use the plugin up you will need to take the following steps in order:
 
 ### Custom API Endpoints
 
-By default, Snyk uses the https://api.sec1.io endpoint. 
-It is possible to configure Snyk to use a different endpoint by changing the `SEC1_API_ENDPOINT` environment variable:
+By default, Sec1 uses the https://api.sec1.io endpoint. 
+It is possible to configure Sec1 to use a different endpoint by changing the `SEC1_API_ENDPOINT` environment variable:
 
 - Go to "Manage Jenkins" > "Configure System"
 - Under "Global Properties" check the "Environment variables" option
 - Click "Add"
 - Set the name to `SEC1_API_ENDPOINT` and the value to the custom endpoint
 
-Refer to the [Sec1 documentation](https://docs.sec1.io/snyk-cli/configure-the-snyk-cli#configuration-to-connect-to-the-snyk-api) for more information about API configuration.
 
 ## 2. Configure a SEC1 API Token Credential
 
@@ -169,4 +168,4 @@ To see more information on your steps, you can increase logging and re-run your 
 
 ---
 
-Made with 🧡 by Sec1 Team
+Made with 🧡 by Sec1 team
