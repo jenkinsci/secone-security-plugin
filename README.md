@@ -162,12 +162,10 @@ The action which needs to be taken on build if vulnerability threshold is breach
 
 ## Troubleshooting
 
-### Increase Logging
-
-To see more information on your steps, you can increase logging and re-run your steps.
+To see more information on your steps:
 
 - View the "Console Output" for a specific build.
 
 ---
 
-Made with 🧡 by Sec1 team
+-- Sec1 team
