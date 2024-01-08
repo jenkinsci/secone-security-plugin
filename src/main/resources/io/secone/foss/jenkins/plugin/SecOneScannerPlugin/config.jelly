@@ -3,19 +3,9 @@
     <f:entry title="${%scmUrlTitle}" field="scmUrl">
         <f:textbox />
     </f:entry>
-  <!--  <f:entry title="${%instanceUrlTitle}" field="instanceUrl">
-        <f:textbox />
-    </f:entry> -->
     <f:entry title="${%credentials}" field="credentialsId">
         <c:select expressionAllowed="${expressionAllowed}"/>
     </f:entry>
-  <!--  <f:entry name="scm" title="${%scmTitle}" field="scm">
-        <select name="scm">
-            <option value="github" selected="${instance.scm.equalsIgnoreCase('Github')? true:null}">Github</option>
-            <option value="bitbucket" selected="${instance.scm.equalsIgnoreCase('Bitbucket')? true:null}">Bitbucket</option>
-            <option value="gitlabs" selected="${instance.scm.equalsIgnoreCase('Gitlabs')? true:null}">Gitlabs</option>
-        </select>
-    </f:entry> -->
     <f:optionalBlock title="${%thresholdTitle}" field="threshold" checked="${instance.threshold != null}">
         <f:block>
             <table style="padding-left:2%; width:100%;">
@@ -27,19 +17,35 @@
                     </td>
                     <td>
                         <f:entry title="${%highThresholdTitle}" field="highThreshold">
-                            <f:textbox default="0" value="${instance.threshold.highThreshold}"/>
+                            <f:textbox default="10" value="${instance.threshold.highThreshold}"/>
                         </f:entry>
                     </td>
                     <td>
                         <f:entry title="${%mediumThresholdTitle}" field="mediumThreshold">
-                            <f:textbox default="0" value="${instance.threshold.mediumThreshold}"/>
+                            <f:textbox default="" value="${instance.threshold.mediumThreshold}"/>
                         </f:entry>
                     </td>
                     <td>
                         <f:entry title="${%lowThresholdTitle}" field="lowThreshold">
-                            <f:textbox default="0" value="${instance.threshold.lowThreshold}"/>
+                            <f:textbox default="" value="${instance.threshold.lowThreshold}"/>
                         </f:entry>
                     </td>
+                </tr>
+                <tr>
+                	<td colspan="4">
+                		On threshold breached, mark the <b>Build Status</b> as  
+                	</td>
+                </tr>
+                <tr>
+                	<td>	
+                		<f:radio name="statusAction" field="statusAction" title="Fail" checked="${instance.threshold.statusAction == 'fail' || !instance.threshold.statusAction}" value="fail"/>
+                	</td>
+                 	<td> 	
+                 		<f:radio name="statusAction" field="statusAction" title="Unstable" checked="${instance.threshold.statusAction == 'unstable'}" value="unstable"/>
+                	</td>                 	
+                	<td>  	
+                		<f:radio name="statusAction" field="statusAction" title="Continue" checked="${instance.threshold.statusAction == 'continue'}" value="continue"/>
+                	</td>      	
                 </tr>
             </table>
         </f:block>
