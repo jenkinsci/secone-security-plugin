@@ -169,5 +169,4 @@ To see more information on your steps, you can increase logging and re-run your 
 
 ---
 
-Made with 💜 by Sec1
-
+Made with 🧡 by Sec1 Team
