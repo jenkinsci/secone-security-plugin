@@ -125,6 +125,8 @@ You can pass the following parameters to your `sec1Security` step.
 
 Source code url which you want to scan for vulnerabilities.
 
+Note: If you want to scan public url then don't pass accessToken and credentialsId.
+
 #### `scm` (optional, default: `github`)
 
 Type of the scm. e.g. github/bitbucket/gitlab
