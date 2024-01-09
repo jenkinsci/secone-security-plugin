@@ -2,6 +2,8 @@
 
 [![Sec1](https://sec1.io/wp-content/uploads/2024/01/rounded-logo-sec1-git.png)](https://sec1.io)
 
+Jenkins Version 2.439
+
 ## Introduction
 
 SEC1 Security plugin help developers/teams to scan their SCM for open source vulnerabilities against SEC1 Security DB
@@ -14,8 +16,8 @@ To use the plugin up you will need to take the following steps in order:
 
 ## 1. Install the SEC1 Security Plugin
 
-- Go to "Manage Jenkins" > "Manage Plugins" > "Available".
-- Search for "SEC1 Security".
+- Go to "Manage Jenkins" > "System Configuration" > "Plugins".
+- Search for "SEC1 Security" under "Available plugins".
 - Install the plugin.
 
 ### Custom API Endpoints
@@ -23,15 +25,15 @@ To use the plugin up you will need to take the following steps in order:
 By default, Sec1 uses the https://api.sec1.io endpoint. 
 It is possible to configure Sec1 to use a different endpoint by changing the `SEC1_API_ENDPOINT` environment variable:
 
-- Go to "Manage Jenkins" > "Configure System"
-- Under "Global Properties" check the "Environment variables" option
+- Go to "Manage Jenkins" > "System Configuration" -> "System"
+- Under "Global properties" check the "Environment variables" option
 - Click "Add"
 - Set the name to `SEC1_API_ENDPOINT` and the value to the custom endpoint
 
 
 ## 2. Configure a SEC1 API Token Credential
 
-- Go to "Manage Jenkins" > "Manage Credentials"
+- Go to "Manage Jenkins" > "Security" > "Credentials"
 - Choose a Store
 - Choose a Domain
 - Go to "Add Credentials"
@@ -138,6 +140,8 @@ Type of the scm. e.g. github/bitbucket/gitlab
 #### `accessToken` (optional, default: *none*)
 
 <username>:<password> for the SCM url. This will overwrite credentialsId if provided.
+
+Note: Here password is your Personal Access Token(PAT) of the github account which has acess to scmUrl.
 
 #### `credentialsId` (optional, default: *none*)
 

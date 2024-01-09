@@ -73,7 +73,7 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 
 	private static final String SCAN_API = "/scan";
 
-	private static final String INSTANCE_URL = "SEC1_INSTANCE_URL";
+	private static final String INSTANCE_URL = "SEC1_API_ENDPOINT";
 
 	private static final String API_KEY = "SEC1_API_KEY";
 
