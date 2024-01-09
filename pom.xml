@@ -3,18 +3,27 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<groupId>io.secone.foss.jenkins.plugin</groupId>
-	<artifactId>sec1-security-plugin</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
+	<groupId>io.jenkins.plugins</groupId>
+	<artifactId>sec1-security</artifactId>
+	<version>${revision}${changelist}</version>
 	<name>sec1-security</name>
 	<packaging>hpi</packaging>
 	<description>Sec1 Security Jenkins plugin for foss scanning</description>
-	
+
 	<parent>
 		<groupId>org.jenkins-ci.plugins</groupId>
 		<artifactId>plugin</artifactId>
-		<version>4.55</version>
+		<version>4.76</version>
 	</parent>
+
+	<scm>
+		<connection>
+			scm:git:https://github.com/sec0ne/resilient-foss-jenkins-plugin</connection>
+		<developerConnection>
+			scm:git:https://github.com/sec0ne/resilient-foss-jenkins-plugin</developerConnection>
+		<tag>HEAD</tag>
+		<url>https://github.com/sec0ne/resilient-foss-jenkins-plugin</url>
+	</scm>
 
 	<dependencies>
 		<dependency>
@@ -28,10 +37,10 @@
 			<version>20220320</version>
 		</dependency>
 		<dependency>
-            <groupId>org.jenkins-ci.plugins.workflow</groupId>
-            <artifactId>workflow-job</artifactId>
-            <version>2.40</version>
-        </dependency>
+			<groupId>org.jenkins-ci.plugins.workflow</groupId>
+			<artifactId>workflow-job</artifactId>
+			<version>2.40</version>
+		</dependency>
 	</dependencies>
 
 	<repositories>
@@ -59,6 +68,15 @@
 	<properties>
 		<!-- Baseline Jenkins version you use to build the plugin. -->
 		<!-- Users must have this version or newer to run. -->
-		<jenkins.version>2.385</jenkins.version>
+		<jenkins.version>2.414.3</jenkins.version>
+		<revision>1</revision>
+		<changelist>999999-SNAPSHOT</changelist>
 	</properties>
+
+	<licenses>
+		<license>
+			<name>Apache-2.0</name>
+			<url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+		</license>
+	</licenses>
 </project>

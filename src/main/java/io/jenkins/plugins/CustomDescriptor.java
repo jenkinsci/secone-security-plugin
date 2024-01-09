@@ -1,4 +1,4 @@
-package io.secone.foss.jenkins.plugin;
+package io.jenkins.plugins;
 
 import hudson.model.AbstractProject;
 import hudson.tasks.BuildStepDescriptor;

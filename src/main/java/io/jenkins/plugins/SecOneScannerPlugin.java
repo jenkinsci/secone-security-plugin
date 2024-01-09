@@ -1,4 +1,4 @@
-package io.secone.foss.jenkins.plugin;
+package io.jenkins.plugins;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -61,7 +61,7 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-import io.secone.foss.jenkins.plugin.pojo.Threshold;
+import io.jenkins.plugins.pojo.Threshold;
 import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
 

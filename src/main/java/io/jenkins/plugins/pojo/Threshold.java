@@ -1,4 +1,4 @@
-package io.secone.foss.jenkins.plugin.pojo;
+package io.jenkins.plugins.pojo;
 
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
