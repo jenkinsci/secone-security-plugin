@@ -21,6 +21,7 @@ import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.verb.POST;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
@@ -59,7 +60,6 @@ import hudson.plugins.git.util.BuildData;
 import hudson.security.ACL;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
-import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import io.jenkins.plugins.pojo.Threshold;
 import jenkins.model.Jenkins;
@@ -90,6 +90,7 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 
 	private Threshold threshold;
 
+	// lgtm[jenkins/plaintext-storage]
 	private String accessToken;
 
 	@DataBoundConstructor
@@ -473,60 +474,15 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 			super(SecOneScannerPlugin.class);
 		}
 
-		public FormValidation doCheckScmUrl(@QueryParameter String value, @QueryParameter String instanceUrl) {
-			if (StringUtils.isNotBlank(value)) {
-				try {
-					new URL(value).toURI();
-				} catch (MalformedURLException e) {
-					return FormValidation.error("Invalid Url!!!");
-				} catch (URISyntaxException e) {
-					return FormValidation.error("Invalid Url!!!");
-				}
-				if (StringUtils.isNotBlank(instanceUrl)) {
-					try {
-						new URL(instanceUrl).toURI();
-					} catch (MalformedURLException e) {
-						return FormValidation.error("Invalid Url!!!");
-					} catch (URISyntaxException e) {
-						return FormValidation.error("Invalid Url!!!");
-					}
-				}
-			}
-			return FormValidation.ok();
-		}
-
-		public FormValidation doCheckStatusAction(@QueryParameter String statusAction) {
-			logger.info("check this value=> {}", statusAction);
-
-			return FormValidation.ok();
-		}
-
-		public FormValidation doCheckCriticalThreshold(@QueryParameter String value,
-				@QueryParameter String highThreshold, @QueryParameter String mediumThreshold,
-				@QueryParameter String lowThreshold) {
-			try {
-				if (StringUtils.isNotBlank(value)) {
-					Integer.parseInt(value);
-				}
-				if (StringUtils.isNotBlank(highThreshold)) {
-					Integer.parseInt(highThreshold);
-				}
-				/*
-				 * if (StringUtils.isNotBlank(mediumThreshold)) {
-				 * Integer.parseInt(mediumThreshold); } if
-				 * (StringUtils.isNotBlank(lowThreshold)) { Integer.parseInt(lowThreshold); }
-				 */
-			} catch (Exception ex) {
-				return FormValidation.error("Only Numbers allowed!");
-			}
-			return FormValidation.ok();
-		}
-
 		@Inject
 		private UserRemoteConfig.DescriptorImpl delegate;
 
+		@POST
 		public ListBoxModel doFillCredentialsIdItems(@AncestorInPath Item project, @QueryParameter String scmUrl,
 				@QueryParameter String credentialsId) {
+			if (project != null && !project.hasPermission(Item.CONFIGURE)) {
+				return new ListBoxModel();
+			}
 			return delegate.doFillCredentialsIdItems(project, scmUrl, credentialsId);
 		}
 
@@ -539,6 +495,20 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		public String getDisplayName() {
 			return "Execute Sec1 Security Scanner";
 		}
+	}
+
+	private boolean isValidUrl(String url) {
+		if (StringUtils.isNotBlank(url)) {
+			try {
+				new URL(url).toURI();
+				return true;
+			} catch (MalformedURLException e) {
+				return false;
+			} catch (URISyntaxException e) {
+				return false;
+			}
+		}
+		return false;
 	}
 
 	private String getSubUrl(String scmUrl) throws MalformedURLException {
