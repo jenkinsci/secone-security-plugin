@@ -38,7 +38,11 @@ It is possible to configure Sec1 to use a different endpoint by changing the `SE
 - Choose a Domain
 - Go to "Add Credentials"
 - Select "Secret text"
-- Add SEC1_API_KEY as ID and Configure the Credentials
+- Add `SEC1_API_KEY` as ID and Configure the Credentials
+
+To get `SEC1_API_KEY` navigate to https://scopy.sec1.io/ > "Login with GitHub" > "Settings" 
+- In "API key" section, click on "Generate API key"
+- Copy key for use.
 
 <blockquote>
 <details>

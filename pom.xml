@@ -9,7 +9,7 @@
 	<name>sec1-security</name>
 	<packaging>hpi</packaging>
 	<description>Sec1 Security Jenkins plugin for foss scanning</description>
-
+	
 	<parent>
 		<groupId>org.jenkins-ci.plugins</groupId>
 		<artifactId>plugin</artifactId>
