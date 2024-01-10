@@ -90,8 +90,7 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 
 	private Threshold threshold;
 
-	// lgtm[jenkins/plaintext-storage]
-	private String accessToken;
+	//private String accessToken;
 
 	@DataBoundConstructor
 	public SecOneScannerPlugin(String scmUrl, String scm) {
@@ -134,14 +133,14 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		this.threshold = threshold;
 	}
 
-	public String getAccessToken() {
+	/*public String getAccessToken() {
 		return accessToken;
 	}
 
 	@DataBoundSetter
 	public void setAccessToken(String accessToken) {
 		this.accessToken = accessToken;
-	}
+	}*/
 
 	public String getActionOnThresholdBreached() {
 		return actionOnThresholdBreached;
@@ -296,9 +295,10 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		}
 		// inputParamsMap.put("userId", userId);
 		String accessTokenStr = "";
-		if (StringUtils.isNotBlank(accessToken)) {
-			accessTokenStr = Base64.getEncoder().encodeToString((accessToken).getBytes(Charset.forName("UTF-8")));
-		} else if (StringUtils.isNotBlank(credentialsId)) {
+		/*if (StringUtils.isNotBlank(accessToken)) {
+			accessTokenStr = accessToken;
+		} else*/ 
+		if (StringUtils.isNotBlank(credentialsId)) {
 			accessTokenStr = getCredentials(credentialsId, userId.toString(), buildProject);
 		} else {
 			getCredentialsFromScm(scmUrl, buildProject);

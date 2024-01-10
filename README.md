@@ -141,12 +141,6 @@ Type of the scm. e.g. github/bitbucket/gitlab
 
 Type of the scm. e.g. github/bitbucket/gitlab
 
-#### `accessToken` (optional, default: *none*)
-
-<username>:<password> for the SCM url. This will overwrite credentialsId if provided.
-
-Note: Here password is your Personal Access Token(PAT) of the github account which has acess to scmUrl.
-
 #### `credentialsId` (optional, default: *none*)
 
 Credentials ID which is configured in Jenkins store which has access on given SCM url
