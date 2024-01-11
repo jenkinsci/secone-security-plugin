@@ -1,4 +1,4 @@
-package io.jenkins.plugins;
+package io.jenkins.plugins.secone.security;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -61,7 +61,7 @@ import hudson.security.ACL;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.ListBoxModel;
-import io.jenkins.plugins.pojo.Threshold;
+import io.jenkins.plugins.secone.security.pojo.Threshold;
 import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
 
@@ -89,8 +89,6 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 	private String instanceUrl;
 
 	private Threshold threshold;
-
-	//private String accessToken;
 
 	@DataBoundConstructor
 	public SecOneScannerPlugin(String scmUrl, String scm) {
@@ -132,15 +130,6 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 	public void setThreshold(Threshold threshold) {
 		this.threshold = threshold;
 	}
-
-	/*public String getAccessToken() {
-		return accessToken;
-	}
-
-	@DataBoundSetter
-	public void setAccessToken(String accessToken) {
-		this.accessToken = accessToken;
-	}*/
 
 	public String getActionOnThresholdBreached() {
 		return actionOnThresholdBreached;
@@ -279,7 +268,6 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		inputParamsMap.put("urlType", scm);
 		inputParamsMap.put("appName", appName);
 		inputParamsMap.put("source", "jenkins");
-		// List<?> causes = build.getCauses();
 		if (causes != null && causes.size() > 0) {
 			causes.forEach(cause -> {
 				if (cause instanceof UserIdCause) {
@@ -293,25 +281,18 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		if (StringUtils.isBlank(scmUrl)) {
 			throw new AbortException("SCM Url not configured. Please check your configuration.");
 		}
-		// inputParamsMap.put("userId", userId);
 		String accessTokenStr = "";
-		/*if (StringUtils.isNotBlank(accessToken)) {
-			accessTokenStr = accessToken;
-		} else*/ 
 		if (StringUtils.isNotBlank(credentialsId)) {
 			accessTokenStr = getCredentials(credentialsId, userId.toString(), buildProject);
 		} else {
-			getCredentialsFromScm(scmUrl, buildProject);
+			accessTokenStr = getCredentialsFromScm(scmUrl, buildProject);
 		}
-		// listener.getLogger().println("cred : " + accessTokenStr);
 		if (StringUtils.isNotBlank(accessTokenStr)) {
 			inputParamsMap.put("accessToken", accessTokenStr);
 		}
 
 		listener.getLogger().println("==================== SEC1 SCAN CONFIG ====================");
-		// listener.getLogger().println("Scan Instance Url : " + scanUrl);
 		listener.getLogger().println("SCM Url                " + scmUrl);
-		// listener.getLogger().println("User : " + userId);
 		listener.getLogger().println("Threshold Enabled      " + applyThreshold);
 		if (threshold != null && applyThreshold) {
 			listener.getLogger().println("Threshold Values       " + "Critical "
@@ -324,8 +305,6 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 					+ "," + " Low "
 					+ (StringUtils.isNotBlank(threshold.getLowThreshold()) ? threshold.getLowThreshold() : "NA"));
 		}
-		// listener.getLogger().println("=====================================================");
-		// listener.getLogger().println("Request Params -> " + inputParamsMap);
 
 		RestTemplate rest = new RestTemplate();
 		HttpEntity<String> request = new HttpEntity<String>(inputParamsMap.toString(), headers);
@@ -334,8 +313,6 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		if (responseEntity.getStatusCodeValue() == 200) {
 			JSONObject responseJson = new JSONObject(responseEntity.getBody());
 			if (responseJson.has("cveCountDetails")) {
-				// listener.getLogger().println("Scan Result : " +
-				// responseJson.getJSONObject("cveCountDetails"));
 				int critical = responseJson.optJSONObject("cveCountDetails") != null
 						? responseJson.getJSONObject("cveCountDetails").optInt("CRITICAL")
 						: 0;

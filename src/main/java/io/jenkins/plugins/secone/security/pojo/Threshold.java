@@ -1,4 +1,4 @@
-package io.jenkins.plugins.pojo;
+package io.jenkins.plugins.secone.security.pojo;
 
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;

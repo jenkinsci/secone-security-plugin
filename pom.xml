@@ -1,14 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<groupId>io.jenkins.plugins</groupId>
-	<artifactId>sec1-security</artifactId>
-	<version>${revision}${changelist}</version>
-	<name>sec1-security</name>
-	<packaging>hpi</packaging>
-	<description>Sec1 Security Jenkins plugin for foss scanning</description>
 
 	<parent>
 		<groupId>org.jenkins-ci.plugins</groupId>
@@ -16,25 +8,45 @@
 		<version>4.76</version>
 	</parent>
 
+	<groupId>io.jenkins.plugins.secone.security</groupId>
+	<artifactId>sec1-security</artifactId>
+	<version>1.0.0-SNAPSHOT</version>
+	<packaging>hpi</packaging>
+
+	<name>sec1-security</name>
+	<description>Sec1 Security Jenkins plugin for foss scanning</description>
+	<licenses>
+		<license>
+			<name>Apache-2.0</name>
+			<url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+		</license>
+	</licenses>
+
 	<scm>
 		<connection>
-			scm:git:https://github.com/sec0ne/resilient-foss-jenkins-plugin</connection>
+			scm:git:https://github.com/jenkinsci/sec1-security-plugin</connection>
 		<developerConnection>
-			scm:git:https://github.com/sec0ne/resilient-foss-jenkins-plugin</developerConnection>
+			scm:git:https://github.com/jenkinsci/sec1-security-plugin</developerConnection>
 		<tag>HEAD</tag>
-		<url>https://github.com/sec0ne/resilient-foss-jenkins-plugin</url>
+		<url>https://github.com/jenkinsci/sec1-security-plugin</url>
 	</scm>
+
+	<properties>
+		<!-- Baseline Jenkins version you use to build the plugin. -->
+		<!-- Users must have this version or newer to run. -->
+		<jenkins.version>2.414.3</jenkins.version>
+	</properties>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.jenkins-ci.plugins</groupId>
 			<artifactId>git</artifactId>
-			<version>4.11.5</version>
+			<version>5.2.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.json</groupId>
 			<artifactId>json</artifactId>
-			<version>20220320</version>
+			<version>20231013</version>
 		</dependency>
 		<dependency>
 			<groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -53,7 +65,6 @@
 			<url>https://repo1.maven.org/maven2/</url>
 		</repository>
 	</repositories>
-
 	<pluginRepositories>
 		<pluginRepository>
 			<id>repo.jenkins-ci.org</id>
@@ -64,19 +75,4 @@
 			<url>https://repo1.maven.org/maven2/</url>
 		</pluginRepository>
 	</pluginRepositories>
-
-	<properties>
-		<!-- Baseline Jenkins version you use to build the plugin. -->
-		<!-- Users must have this version or newer to run. -->
-		<jenkins.version>2.414.3</jenkins.version>
-		<revision>1</revision>
-		<changelist>999999-SNAPSHOT</changelist>
-	</properties>
-
-	<licenses>
-		<license>
-			<name>Apache-2.0</name>
-			<url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
-		</license>
-	</licenses>
 </project>
