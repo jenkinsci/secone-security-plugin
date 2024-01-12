@@ -11,11 +11,11 @@
 	</parent>
 
 	<groupId>io.jenkins.plugins.secone.security</groupId>
-	<artifactId>sec1-security</artifactId>
+	<artifactId>secone-security</artifactId>
 	<version>${revision}${changelist}</version>
 	<packaging>hpi</packaging>
 
-	<name>sec1-security</name>
+	<name>secone-security</name>
 	<description>Sec1 Security Jenkins plugin for foss scanning</description>
 	<licenses>
 		<license>
@@ -83,19 +83,11 @@
 			<id>repo.jenkins-ci.org</id>
 			<url>https://repo.jenkins-ci.org/public/</url>
 		</repository>
-		<repository>
-			<id>central</id>
-			<url>https://repo1.maven.org/maven2/</url>
-		</repository>
 	</repositories>
 	<pluginRepositories>
 		<pluginRepository>
 			<id>repo.jenkins-ci.org</id>
 			<url>https://repo.jenkins-ci.org/public/</url>
-		</pluginRepository>
-		<pluginRepository>
-			<id>central</id>
-			<url>https://repo1.maven.org/maven2/</url>
 		</pluginRepository>
 	</pluginRepositories>
 </project>
