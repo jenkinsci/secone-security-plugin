@@ -207,7 +207,6 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 	}
 
 	private String getApiKey() {
-
 		List<StringCredentials> credList = CredentialsProvider.lookupCredentials(StringCredentials.class,
 				Jenkins.getInstanceOrNull(), ACL.SYSTEM, Collections.emptyList());
 		StringCredentials credentials = CredentialsMatchers.firstOrNull(credList, CredentialsMatchers.withId(API_KEY));
