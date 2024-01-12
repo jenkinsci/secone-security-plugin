@@ -12,7 +12,7 @@
 
 	<groupId>io.jenkins.plugins.secone.security</groupId>
 	<artifactId>sec1-security</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
+	<version>${revision}${changelist}</version>
 	<packaging>hpi</packaging>
 
 	<name>sec1-security</name>
@@ -26,17 +26,20 @@
 
 	<scm>
 		<connection>
-			scm:git:https://github.com/jenkinsci/sec1-security-plugin</connection>
+			scm:git:https://github.com/${gitHubRepo}</connection>
 		<developerConnection>
-			scm:git:https://github.com/jenkinsci/sec1-security-plugin</developerConnection>
-		<tag>HEAD</tag>
-		<url>https://github.com/jenkinsci/sec1-security-plugin</url>
+			scm:git:https://github.com/${gitHubRepo}</developerConnection>
+		<tag>${scmTag}</tag>
+		<url>https://github.com/${gitHubRepo}</url>
 	</scm>
 
 	<properties>
 		<!-- Baseline Jenkins version you use to build the plugin. -->
 		<!-- Users must have this version or newer to run. -->
 		<jenkins.version>2.414.3</jenkins.version>
+		<revision>1.0.0</revision>
+		<changelist>-SNAPSHOT</changelist>
+		<gitHubRepo>jenkinsci/sec1-security-plugin</gitHubRepo>
 	</properties>
 
 	<dependencyManagement>
@@ -50,7 +53,6 @@
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
-
 	<dependencies>
 		<dependency>
 			<groupId>org.jenkins-ci.plugins</groupId>
@@ -66,6 +68,16 @@
 		</dependency>
 	</dependencies>
 
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>io.jenkins.tools.incrementals</groupId>
+				<artifactId>incrementals-maven-plugin</artifactId>
+				<!-- Other configuration options if needed -->
+			</plugin>
+			<!-- Other plugins... -->
+		</plugins>
+	</build>
 	<repositories>
 		<repository>
 			<id>repo.jenkins-ci.org</id>
