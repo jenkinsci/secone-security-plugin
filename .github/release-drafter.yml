@@ -1,2 +1,2 @@
 _extends: .github
-tag-template: ${artifactId}-$NEXT_MINOR_VERSION
+tag-template: secone-security-$NEXT_MINOR_VERSION

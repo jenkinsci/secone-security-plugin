@@ -67,17 +67,6 @@
 			<artifactId>workflow-job</artifactId>
 		</dependency>
 	</dependencies>
-
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>io.jenkins.tools.incrementals</groupId>
-				<artifactId>incrementals-maven-plugin</artifactId>
-				<!-- Other configuration options if needed -->
-			</plugin>
-			<!-- Other plugins... -->
-		</plugins>
-	</build>
 	<repositories>
 		<repository>
 			<id>repo.jenkins-ci.org</id>
