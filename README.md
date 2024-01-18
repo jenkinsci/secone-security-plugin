@@ -13,6 +13,7 @@ To use the plugin up you will need to take the following steps in order:
 
 1. [Install the SEC1 Security Plugin](#1-install-the-sec1-security-plugin)
 2. [Configure a SEC1 API Token Credential](#2-configure-a-sec1-api-token-credential)
+3. [Add Sec1 Security to your Project](#3-add-sec1-security-to-your-project)
 
 ## 1. Install the SEC1 Security Plugin
 
@@ -40,7 +41,7 @@ It is possible to configure Sec1 to use a different endpoint by changing the `SE
 - Select "Secret text"
 - Add `SEC1_API_KEY` as ID and Configure the Credentials
 
-To get `SEC1_API_KEY` navigate to https://scopy.sec1.io/ > "Login with GitHub" > "Settings" 
+To get `SEC1_API_KEY` navigate to [Scopy](https://scopy.sec1.io/) > "Login with GitHub" > "Settings" 
 - In "API key" section, click on "Generate API key"
 - Copy key for use.
 
@@ -53,7 +54,7 @@ To get `SEC1_API_KEY` navigate to https://scopy.sec1.io/ > "Login with GitHub" >
 </details>
 </blockquote>
 
-## 4. Add Sec1 Security to your Project
+## 3. Add Sec1 Security to your Project
 
 This step will depend on if you're using Freestyle Projects or Pipeline Projects.
 
