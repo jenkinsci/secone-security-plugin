@@ -1,4 +1,4 @@
-# SEC1 Security
+# Sec1 Security
 
 [![Sec1](https://sec1.io/wp-content/uploads/2024/01/rounded-logo-sec1-git.png)](https://sec1.io)
 
@@ -6,19 +6,19 @@ Jenkins Version 2.439
 
 ## Introduction
 
-SEC1 Security plugin help developers/teams to scan their SCM for open source vulnerabilities against SEC1 Security DB
+Sec1 Security plugin help developers/teams to scan their SCM for open source vulnerabilities against Sec1 Security DB
 
 ## Usage
 To use the plugin up you will need to take the following steps in order:
 
-1. [Install the SEC1 Security Plugin](#1-install-the-sec1-security-plugin)
-2. [Configure a SEC1 API Token Credential](#2-configure-a-sec1-api-token-credential)
+1. [Install the Sec1 Security Plugin](#1-install-the-sec1-security-plugin)
+2. [Configure a Sec1 API Token Credential](#2-configure-a-sec1-api-token-credential)
 3. [Add Sec1 Security to your Project](#3-add-sec1-security-to-your-project)
 
 ## 1. Install the SEC1 Security Plugin
 
 - Go to "Manage Jenkins" > "System Configuration" > "Plugins".
-- Search for "SEC1 Security" under "Available plugins".
+- Search for "Sec1 Security" under "Available plugins".
 - Install the plugin.
 
 ### Custom API Endpoints
@@ -32,7 +32,7 @@ It is possible to configure Sec1 to use a different endpoint by changing the `SE
 - Set the name to `SEC1_API_ENDPOINT` and the value to the custom endpoint
 
 
-## 2. Configure a SEC1 API Token Credential
+## 2. Configure a Sec1 API Token Credential
 
 - Go to "Manage Jenkins" > "Security" > "Credentials"
 - Choose a Store
