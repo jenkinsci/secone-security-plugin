@@ -36,6 +36,7 @@ import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
+import com.cloudbees.plugins.credentials.domains.URIRequirementBuilder;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 
 import hudson.AbortException;
@@ -147,7 +148,7 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		printStartMessage(listener);
 		String fossInstanceUrl = getInstanceUrl(build.getEnvironment(listener), listener);
 
-		String apiKey = getApiKey();
+		String apiKey = getApiKey(build, listener);
 
 		if (threshold != null) {
 			applyThreshold = true;
@@ -188,7 +189,7 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		printStartMessage(listener);
 		String fossInstanceUrl = getInstanceUrl(env, listener);
 
-		String apiKey = getApiKey();
+		String apiKey = getApiKey(run, listener);
 		if (StringUtils.isBlank(actionOnThresholdBreached)) {
 			listener.getLogger().println("actionOnThresholdBreached is not set. Default action is fail.");
 		} else if (StringUtils.equalsIgnoreCase(actionOnThresholdBreached, "fail")
@@ -206,12 +207,12 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		printEndMessage(listener);
 	}
 
-	private String getApiKey() {
-		List<StringCredentials> credList = CredentialsProvider.lookupCredentials(StringCredentials.class,
-				Jenkins.getInstanceOrNull(), ACL.SYSTEM, Collections.emptyList());
-		StringCredentials credentials = CredentialsMatchers.firstOrNull(credList, CredentialsMatchers.withId(API_KEY));
-		if (credentials != null) {
-			String apiKey = credentials.getSecret().getPlainText();
+	private String getApiKey(Run<?, ?> run, TaskListener listener) {
+
+		StringCredentials apiKeyCreds = CredentialsProvider.findCredentialById(API_KEY, StringCredentials.class, run,
+				Collections.emptyList());
+		if (apiKeyCreds != null) {
+			String apiKey = apiKeyCreds.getSecret().getPlainText();
 			return apiKey;
 		}
 		return null;
