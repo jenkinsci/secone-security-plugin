@@ -10,7 +10,7 @@
 		<version>4.76</version>
 	</parent>
 
-	<groupId>io.jenkins.plugins.secone.security</groupId>
+	<groupId>io.jenkins.plugins</groupId>
 	<artifactId>secone-security</artifactId>
 	<version>${revision}${changelist}</version>
 	<packaging>hpi</packaging>
