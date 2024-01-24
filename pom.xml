@@ -37,7 +37,7 @@
 		<jenkins.version>2.414.3</jenkins.version>
 		<revision>1.0.0</revision>
 		<changelist>-SNAPSHOT</changelist>
-		<gitHubRepo>jenkinsci/sec1-security-plugin</gitHubRepo>
+		<gitHubRepo>jenkinsci/secone-security-plugin</gitHubRepo>
 	</properties>
 
 	<dependencyManagement>
