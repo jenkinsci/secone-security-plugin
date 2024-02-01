@@ -1,0 +1,9 @@
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+	hooksPath = /dev/null
+[remote "origin"]
+	url = https://github.com/MOCK-Test/sampleapp
+	fetch = +refs/heads/*:refs/remotes/origin/*

@@ -1,10 +1,11 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
-    <f:entry title="${%scmUrlTitle}" field="scmUrl">
+
+	<f:entry>
+		<b>Swiftly scan and secure code dependencies using our expansive, constantly updated open-source vulnerability database.</b>
+	</f:entry>
+	<f:entry title="Credentials Id" field="apiCredentialsId">
         <f:textbox />
-    </f:entry>
-    <f:entry title="${%credentials}" field="credentialsId">
-        <c:select expressionAllowed="${expressionAllowed}"/>
     </f:entry>
     <f:optionalBlock title="${%thresholdTitle}" field="threshold" checked="${instance.threshold != null}">
         <f:block>

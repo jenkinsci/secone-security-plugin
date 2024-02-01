@@ -1,27 +1,33 @@
 package io.jenkins.plugins.secone.security;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 
-import javax.inject.Inject;
-
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
+import org.json.JSONArray;
 import org.json.JSONObject;
-import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.verb.POST;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
@@ -30,40 +36,26 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.CollectionUtils;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
-import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
-import com.cloudbees.plugins.credentials.common.StandardCredentials;
-import com.cloudbees.plugins.credentials.domains.DomainRequirement;
-import com.cloudbees.plugins.credentials.domains.URIRequirementBuilder;
-import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 
 import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
-import hudson.Util;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
-import hudson.model.Action;
 import hudson.model.BuildListener;
-import hudson.model.Cause;
-import hudson.model.Item;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
-import hudson.model.Cause.UserIdCause;
-import hudson.plugins.git.GitSCM;
-import hudson.plugins.git.UserRemoteConfig;
-import hudson.plugins.git.util.BuildData;
-import hudson.security.ACL;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
-import hudson.util.ListBoxModel;
+import io.jenkins.plugins.secone.security.object.initializer.ObjectInitializer;
 import io.jenkins.plugins.secone.security.pojo.Threshold;
-import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
 
 public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
@@ -72,46 +64,36 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 
 	private static final String API_CONTEXT = "/rest/foss";
 
-	private static final String SCAN_API = "/scan";
+	private static final String SCAN_API = "/scan/file";
 
-	private static final String INSTANCE_URL = "SEC1_API_ENDPOINT";
+	private static final String INSTANCE_URL = "SEC1_INSTANCE_URL";
+
+	private static final String SUPPORTED_MANIFEST = "/supported-manifest";
 
 	private static final String API_KEY = "SEC1_API_KEY";
 
 	private static final String API_KEY_HEADER = "sec1-api-key";
 
-	private String scmUrl;
-	private String scm;
-	private String credentialsId;
+	private String apiCredentialsId;
 	private boolean applyThreshold;
 
-	private String actionOnThresholdBreached;
+	private String scanFileLocation;
 
-	private String instanceUrl;
+	private String actionOnThresholdBreached;
 
 	private Threshold threshold;
 
 	@DataBoundConstructor
-	public SecOneScannerPlugin(String scmUrl, String scm) {
-		this.scmUrl = scmUrl;
-		this.scm = scm;
+	public SecOneScannerPlugin(String apiCredentialsId) {
+		this.apiCredentialsId = apiCredentialsId;
 	}
 
-	public String getScmUrl() {
-		return scmUrl;
+	public String getApiCredentialsId() {
+		return apiCredentialsId;
 	}
 
-	public String getScm() {
-		return scm;
-	}
-
-	public String getCredentialsId() {
-		return credentialsId;
-	}
-
-	@DataBoundSetter
-	public void setCredentialsId(String credentialsId) {
-		this.credentialsId = Util.fixEmpty(credentialsId);
+	public void setApiCredentialsId(String apiCredentialsId) {
+		this.apiCredentialsId = apiCredentialsId;
 	}
 
 	public boolean isApplyThreshold() {
@@ -141,20 +123,25 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		this.actionOnThresholdBreached = actionOnThresholdBreached;
 	}
 
+	public String getScanFileLocation() {
+		return scanFileLocation;
+	}
+
+	@DataBoundSetter
+	public void setScanFileLocation(String scanFileLocation) {
+		this.scanFileLocation = scanFileLocation;
+	}
+
 	// from UI
 	@Override
-	public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener)
-			throws IOException, InterruptedException {
+	public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws AbortException {
 		printStartMessage(listener);
-		String fossInstanceUrl = getInstanceUrl(build.getEnvironment(listener), listener);
-
-		String apiKey = getApiKey(build, listener);
 
 		if (threshold != null) {
 			applyThreshold = true;
 		}
-		int result = performScan(build.getAllActions(), build.getCauses(), build.getProject(), listener,
-				fossInstanceUrl, apiKey, applyThreshold);
+		String workingDirectory = getGitWorkingDirectory(build, listener);
+		int result = performScan(build, listener, applyThreshold, workingDirectory);
 		if (result != 0) {
 			build.setResult(Result.UNSTABLE);
 		}
@@ -187,9 +174,11 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 			throws InterruptedException, IOException {
 
 		printStartMessage(listener);
-		String fossInstanceUrl = getInstanceUrl(env, listener);
 
-		String apiKey = getApiKey(run, listener);
+		if (StringUtils.isBlank(scanFileLocation)) {
+			throw new AbortException("scanFileLocation not configured. Please check your configuration.");
+		}
+
 		if (StringUtils.isBlank(actionOnThresholdBreached)) {
 			listener.getLogger().println("actionOnThresholdBreached is not set. Default action is fail.");
 		} else if (StringUtils.equalsIgnoreCase(actionOnThresholdBreached, "fail")
@@ -199,21 +188,38 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 				getThreshold().setStatusAction(actionOnThresholdBreached);
 			}
 		}
-		int result = performScan(run.getAllActions(), run.getCauses(), null, listener, fossInstanceUrl, apiKey,
-				applyThreshold);
+		int result = performScan(run, listener, applyThreshold, scanFileLocation);
 		if (result != 0) {
 			run.setResult(Result.UNSTABLE);
 		}
 		printEndMessage(listener);
 	}
 
-	private String getApiKey(Run<?, ?> run, TaskListener listener) {
+	public String getApiKey(Run<?, ?> run, TaskListener listener) {
+		if (StringUtils.isNotBlank(apiCredentialsId)) {
+			listener.getLogger().println("Finding api key for credendials id : " + apiCredentialsId);
 
-		StringCredentials apiKeyCreds = CredentialsProvider.findCredentialById(API_KEY, StringCredentials.class, run,
-				Collections.emptyList());
-		if (apiKeyCreds != null) {
-			String apiKey = apiKeyCreds.getSecret().getPlainText();
-			return apiKey;
+			StringCredentials apiKeyCreds = CredentialsProvider.findCredentialById(apiCredentialsId,
+					StringCredentials.class, run, Collections.emptyList());
+
+			if (apiKeyCreds == null) {
+				listener.getLogger().println("Credentials id not found : " + apiCredentialsId);
+				listener.getLogger().println("Finding api key for default credendials id : " + API_KEY);
+				apiKeyCreds = CredentialsProvider.findCredentialById(API_KEY, StringCredentials.class, run,
+						Collections.emptyList());
+			}
+			if (apiKeyCreds != null) {
+				String apiKey = apiKeyCreds.getSecret().getPlainText();
+				return apiKey;
+			}
+		} else {
+			listener.getLogger().println("No Credentials Id confgured, using default credendials id : " + API_KEY);
+			StringCredentials apiKeyCreds = CredentialsProvider.findCredentialById(API_KEY, StringCredentials.class,
+					run, Collections.emptyList());
+			if (apiKeyCreds != null) {
+				String apiKey = apiKeyCreds.getSecret().getPlainText();
+				return apiKey;
+			}
 		}
 		return null;
 	}
@@ -224,157 +230,199 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		return true;
 	}
 
-	private int performScan(List<? extends Action> actionList, List<Cause> causes, AbstractProject<?, ?> buildProject,
-			TaskListener listener, String fossInstanceUrl, String apiKey, boolean applyThreshold)
+	private int performScan(Run<?, ?> run, TaskListener listener, boolean applyThreshold, String workingDirectory)
 			throws AbortException {
+		String sec1ApiKey = getApiKey(run, listener);
 
-		String scanUrl = StringUtils.isBlank(instanceUrl) ? fossInstanceUrl + API_CONTEXT + SCAN_API
-				: instanceUrl + API_CONTEXT + SCAN_API;
-
-		HttpHeaders headers = new HttpHeaders();
-		headers.setContentType(MediaType.APPLICATION_JSON);
-		if (StringUtils.isBlank(apiKey)) {
-			throw new AbortException(
-					"API Key not configured. Please check your configuration. Add SEC1_API_KEY in credentials if missing.");
-		}
-		headers.set(API_KEY_HEADER, apiKey);
-		List<String> scmUrlList = new ArrayList<>();
-		if (StringUtils.isBlank(scmUrl) && !CollectionUtils.isEmpty(actionList)) {
-			actionList.forEach(action -> {
-				if (action instanceof BuildData) {
-					BuildData buildData = (BuildData) action;
-					if (!CollectionUtils.isEmpty(buildData.getRemoteUrls())) {
-						scmUrlList.addAll(buildData.getRemoteUrls());
-					}
-				}
-			});
-			if (!CollectionUtils.isEmpty(scmUrlList))
-				scmUrl = scmUrlList.get(0);
+		if (StringUtils.isBlank(sec1ApiKey)) {
+			throw new AbortException("API Key not configured. Please check your configuration.");
 		}
 
-		JSONObject inputParamsMap = new JSONObject();
-		inputParamsMap.put("location", scmUrl);
+		StringBuilder fossInstanceUrl = new StringBuilder();
+		StringBuilder scmUrl = new StringBuilder();
+		try {
+			fossInstanceUrl.append(getInstanceUrl(run.getEnvironment(listener), listener));
+		} catch (IOException | InterruptedException e) {
+			throw new AbortException("Exception while getting environment variables.");
+		}
 
-		// Descriptor creds = CredentialsProvider.findById(null, credentialsId);
-		StringBuilder userId = new StringBuilder("system");
+		try {
+			String gitUrl = getGitUrl(workingDirectory);
+			if (StringUtils.isBlank(gitUrl)) {
+				throw new AbortException(
+						"No valid manifest found in working directory. Please check your configuration.");
+			}
+			scmUrl.append(gitUrl);
+		} catch (IOException e) {
+			throw new AbortException("Exception while getting getting scm url from .git folder of workspace.");
+		}
+
+		String scanUrl = fossInstanceUrl + API_CONTEXT + SCAN_API;
+
 		StringBuilder appName = new StringBuilder();
 		try {
-			appName.append(getSubUrl(scmUrl));
+			appName.append(getSubUrl(scmUrl.toString()));
 		} catch (Exception ex) {
 			logger.error("Error - extracting app name from url", ex);
 			logger.info("Issue extracting app name from url, setting it to default");
 			appName = new StringBuilder(scmUrl);
 		}
-		inputParamsMap.put("urlType", scm);
-		inputParamsMap.put("appName", appName);
-		inputParamsMap.put("source", "jenkins");
-		if (causes != null && causes.size() > 0) {
-			causes.forEach(cause -> {
-				if (cause instanceof UserIdCause) {
-					UserIdCause jenkinsUser = (UserIdCause) cause;
-					userId.setLength(0);
-					userId.append(jenkinsUser.getUserId());
-				}
-			});
 
-		}
-		if (StringUtils.isBlank(scmUrl)) {
-			throw new AbortException("SCM Url not configured. Please check your configuration.");
-		}
-		String accessTokenStr = "";
-		if (StringUtils.isNotBlank(credentialsId)) {
-			accessTokenStr = getCredentials(credentialsId, userId.toString(), buildProject);
-		} else {
-			accessTokenStr = getCredentialsFromScm(scmUrl, buildProject);
-		}
-		if (StringUtils.isNotBlank(accessTokenStr)) {
-			inputParamsMap.put("accessToken", accessTokenStr);
-		}
+		String manifestUrl = fossInstanceUrl + API_CONTEXT + SUPPORTED_MANIFEST;
 
-		listener.getLogger().println("==================== SEC1 SCAN CONFIG ====================");
-		listener.getLogger().println("SCM Url                " + scmUrl);
-		listener.getLogger().println("Threshold Enabled      " + applyThreshold);
-		if (threshold != null && applyThreshold) {
-			listener.getLogger().println("Threshold Values       " + "Critical "
-					+ (StringUtils.isNotBlank(threshold.getCriticalThreshold()) ? threshold.getCriticalThreshold()
-							: "NA")
-					+ "," + " High "
-					+ (StringUtils.isNotBlank(threshold.getHighThreshold()) ? threshold.getHighThreshold() : "NA") + ","
-					+ " Medium "
-					+ (StringUtils.isNotBlank(threshold.getMediumThreshold()) ? threshold.getMediumThreshold() : "NA")
-					+ "," + " Low "
-					+ (StringUtils.isNotBlank(threshold.getLowThreshold()) ? threshold.getLowThreshold() : "NA"));
-		}
-
-		RestTemplate rest = new RestTemplate();
-		HttpEntity<String> request = new HttpEntity<String>(inputParamsMap.toString(), headers);
-		ResponseEntity<String> responseEntity = rest.exchange(scanUrl, HttpMethod.POST, request, String.class);
+		List<String> supportedManifestList = getSupportedManifest(manifestUrl, sec1ApiKey, listener);
 		int result = 0;
-		if (responseEntity.getStatusCodeValue() == 200) {
-			JSONObject responseJson = new JSONObject(responseEntity.getBody());
-			if (responseJson.has("cveCountDetails")) {
-				int critical = responseJson.optJSONObject("cveCountDetails") != null
-						? responseJson.getJSONObject("cveCountDetails").optInt("CRITICAL")
-						: 0;
-				int high = responseJson.optJSONObject("cveCountDetails") != null
-						? responseJson.getJSONObject("cveCountDetails").optInt("HIGH")
-						: 0;
-				int medium = responseJson.optJSONObject("cveCountDetails") != null
-						? responseJson.getJSONObject("cveCountDetails").optInt("MEDIUM")
-						: 0;
-				int low = responseJson.optJSONObject("cveCountDetails") != null
-						? responseJson.getJSONObject("cveCountDetails").optInt("LOW")
-						: 0;
+		if (!CollectionUtils.isEmpty(supportedManifestList)) {
 
-				listener.getLogger().println("==================== SEC1 SCAN RESULT ====================");
-				if (StringUtils.isBlank(responseJson.optString("errorMessage"))) {
-					listener.getLogger().println("Vulnerabilities Found  " + "Critical " + critical + "," + " High "
-							+ high + "," + " Medium " + medium + "," + " Low " + low);
-					listener.getLogger()
-							.println("RAG Status             " + responseJson.optString("overallRagStatus"));
-					listener.getLogger().println("Report Url             " + responseJson.optString("reportUrl"));
+			List<File> scanFileList = findFilesInDirectory(workingDirectory, supportedManifestList);
+			// logMessage("Files to be scanned : " + scanFileList);
+			if (CollectionUtils.isEmpty(scanFileList)) {
+				throw new AbortException(
+						"No supported manifest found. Supported manifest list : " + supportedManifestList);
+			}
 
-					// listener.getLogger().println("=====================================================");
+			JSONObject inputParamsMap = new JSONObject();
+			inputParamsMap.put("location", scmUrl);
+			inputParamsMap.put("appName", appName);
+			inputParamsMap.put("source", "jenkins");
+			inputParamsMap.put("dirScan", true);
 
-					if (applyThreshold) {
-						try {
-							if (critical != 0 && threshold.getCriticalThreshold() != null
-									&& NumberUtils.isDigits(threshold.getCriticalThreshold())
-									&& critical >= Integer.parseInt(threshold.getCriticalThreshold())) {
-								String message = "Critical Vulnerability Threshold breached.";
-								result = failBuildOnThresholdBreach(message, listener, threshold);
+			listener.getLogger().println("==================== SEC1 SCAN CONFIG ====================");
+			listener.getLogger().println("SCM Url                " + scmUrl);
+			listener.getLogger().println("Threshold Enabled      " + applyThreshold);
+			if (threshold != null && applyThreshold) {
+				listener.getLogger().println("Threshold Values       " + "Critical "
+						+ (StringUtils.isNotBlank(threshold.getCriticalThreshold()) ? threshold.getCriticalThreshold()
+								: "NA")
+						+ "," + " High "
+						+ (StringUtils.isNotBlank(threshold.getHighThreshold()) ? threshold.getHighThreshold() : "NA")
+						+ "," + " Medium "
+						+ (StringUtils.isNotBlank(threshold.getMediumThreshold()) ? threshold.getMediumThreshold()
+								: "NA")
+						+ "," + " Low "
+						+ (StringUtils.isNotBlank(threshold.getLowThreshold()) ? threshold.getLowThreshold() : "NA"));
+			}
+
+			HttpResponse responseEntity = scanFiles(scanUrl, scanFileList, inputParamsMap.toString(), sec1ApiKey);
+
+			if (responseEntity != null && responseEntity.getStatusLine().getStatusCode() == 200) {
+				try {
+					if (responseEntity.getEntity() != null) {
+						org.apache.http.HttpEntity httpScanResponseEntity = responseEntity.getEntity();
+						if (httpScanResponseEntity.getContent() != null) {
+							InputStream rawContent = httpScanResponseEntity.getContent();
+							byte[] bytes = IOUtils.toByteArray(rawContent);
+							String content = new String(bytes, Charset.defaultCharset().name());
+							JSONObject responseJson = new JSONObject(content);
+							if (responseJson.has("cveCountDetails")) {
+								int critical = responseJson.optJSONObject("cveCountDetails") != null
+										? responseJson.getJSONObject("cveCountDetails").optInt("CRITICAL")
+										: 0;
+								int high = responseJson.optJSONObject("cveCountDetails") != null
+										? responseJson.getJSONObject("cveCountDetails").optInt("HIGH")
+										: 0;
+								int medium = responseJson.optJSONObject("cveCountDetails") != null
+										? responseJson.getJSONObject("cveCountDetails").optInt("MEDIUM")
+										: 0;
+								int low = responseJson.optJSONObject("cveCountDetails") != null
+										? responseJson.getJSONObject("cveCountDetails").optInt("LOW")
+										: 0;
+
+								listener.getLogger()
+										.println("==================== SEC1 SCAN RESULT ====================");
+								if (StringUtils.isBlank(responseJson.optString("errorMessage"))) {
+									listener.getLogger().println("Vulnerabilities Found  " + "Critical " + critical
+											+ "," + " High " + high + "," + " Medium " + medium + "," + " Low " + low);
+									listener.getLogger().println(
+											"RAG Status             " + responseJson.optString("overallRagStatus"));
+									listener.getLogger()
+											.println("Report Url             " + responseJson.optString("reportUrl"));
+
+									// listener.getLogger().println("=====================================================");
+
+									if (applyThreshold) {
+
+										if (critical != 0 && threshold.getCriticalThreshold() != null
+												&& NumberUtils.isDigits(threshold.getCriticalThreshold())
+												&& critical >= Integer.parseInt(threshold.getCriticalThreshold())) {
+											String message = "Critical Vulnerability Threshold breached.";
+											result = failBuildOnThresholdBreach(message, listener, threshold);
+										}
+										if (high != 0 && threshold.getHighThreshold() != null
+												&& NumberUtils.isDigits(threshold.getHighThreshold())
+												&& high >= Integer.parseInt(threshold.getHighThreshold())) {
+											String message = "High Vulnerability Threshold breached.";
+											result = failBuildOnThresholdBreach(message, listener, threshold);
+										}
+										if (medium != 0 && threshold.getMediumThreshold() != null
+												&& NumberUtils.isDigits(threshold.getMediumThreshold())
+												&& medium >= Integer.parseInt(threshold.getMediumThreshold())) {
+											String message = "Medium Vulnerability Threshold breached.";
+											result = failBuildOnThresholdBreach(message, listener, threshold);
+										}
+										if (low != 0 && threshold.getLowThreshold() != null
+												&& NumberUtils.isDigits(threshold.getLowThreshold())
+												&& low >= Integer.parseInt(threshold.getLowThreshold())) {
+											String message = "Low Vulnerability Threshold breached.";
+											result = failBuildOnThresholdBreach(message, listener, threshold);
+										}
+									}
+								} else {
+									listener.error("Error Details : " + responseJson.optString("errorMessage"));
+									result = 2;
+								}
 							}
-							if (high != 0 && threshold.getHighThreshold() != null
-									&& NumberUtils.isDigits(threshold.getHighThreshold())
-									&& high >= Integer.parseInt(threshold.getHighThreshold())) {
-								String message = "High Vulnerability Threshold breached.";
-								result = failBuildOnThresholdBreach(message, listener, threshold);
-							}
-							if (medium != 0 && threshold.getMediumThreshold() != null
-									&& NumberUtils.isDigits(threshold.getMediumThreshold())
-									&& medium >= Integer.parseInt(threshold.getMediumThreshold())) {
-								String message = "Medium Vulnerability Threshold breached.";
-								result = failBuildOnThresholdBreach(message, listener, threshold);
-							}
-							if (low != 0 && threshold.getLowThreshold() != null
-									&& NumberUtils.isDigits(threshold.getLowThreshold())
-									&& low >= Integer.parseInt(threshold.getLowThreshold())) {
-								String message = "Low Vulnerability Threshold breached.";
-								result = failBuildOnThresholdBreach(message, listener, threshold);
-							}
-						} catch (NumberFormatException ex) {
-							throw new AbortException(
-									"Check values configured for vulnerability threshold. Only numbers are allowed.");
+						} else {
+							logger.info("Invalid content recevied");
+							throw new AbortException("Error while processing scan result. Failing the build.");
 						}
 					}
-				} else {
-					listener.error("Error Details : " + responseJson.optString("errorMessage"));
-					result = 2;
+				} catch (IOException ex) {
+					logger.info("", ex);
+					throw new AbortException("Error while processing scan result. Failing the build.");
 				}
-
+			} else {
+				logger.error("Issue while getting response from system.");
+				throw new AbortException("Error while processing scan result. Failing the build.");
 			}
+		} else {
+			throw new AbortException(
+					"No supported manifest list found. Check you connectivity with Sec1 Api : " + fossInstanceUrl);
 		}
 		return result;
+	}
+
+	private List<String> getSupportedManifest(String apiUrl, String apiKey, TaskListener listener)
+			throws AbortException {
+		HttpHeaders headers = new HttpHeaders();
+		headers.set("sec1-api-key", apiKey);
+
+		HttpEntity<?> entity = new HttpEntity<>(headers);
+
+		try {
+			RestTemplate restTemplate = ObjectInitializer.getRestTemplate();
+			ResponseEntity<String> manifestResponseEntity = restTemplate.exchange(apiUrl, HttpMethod.GET, entity,
+					String.class);
+			JSONObject responseJson = new JSONObject(manifestResponseEntity.getBody());
+			return parseJsonToDataList(responseJson);
+		} catch (HttpClientErrorException e) {
+			listener.error(e.getResponseBodyAsString());
+			throw new AbortException("Check your API Key. Failing the build.");
+		} catch (Exception ex) {
+			listener.error("" + ex);
+			throw new AbortException("Error while scanning the application. Failing the build.");
+		}
+	}
+
+	private List<String> parseJsonToDataList(JSONObject jsonObject) {
+		List<String> dataList = new ArrayList<>();
+		if (jsonObject.has("data")) {
+			JSONArray dataArray = jsonObject.getJSONArray("data");
+			for (int i = 0; i < dataArray.length(); i++) {
+				dataList.add(dataArray.getString(i));
+			}
+		}
+		return dataList;
 	}
 
 	private int failBuildOnThresholdBreach(String message, TaskListener listener, Threshold threshold)
@@ -394,54 +442,6 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		return 0;
 	}
 
-	public static String getCredentialsFromScm(String scmUrl, AbstractProject<?, ?> buildProject) {
-		String base64EncodedToken = "";
-		if (buildProject != null && buildProject.getScm() instanceof GitSCM) {
-			GitSCM gitScm = (GitSCM) buildProject.getScm();
-			for (UserRemoteConfig userRemoteConfig : gitScm.getUserRemoteConfigs()) {
-				if (userRemoteConfig != null && StringUtils.equals(userRemoteConfig.getUrl(), scmUrl)) {
-					logger.info("Getting creds for : {}", userRemoteConfig.getCredentialsId());
-					String credentialsId = userRemoteConfig.getCredentialsId();
-					if (StringUtils.isNotBlank(credentialsId)) {
-						StandardCredentials credentials = CredentialsMatchers.firstOrNull(
-								CredentialsProvider.lookupCredentials(StandardCredentials.class, buildProject,
-										ACL.SYSTEM, Collections.emptyList()),
-								CredentialsMatchers.withId(credentialsId));
-						if (credentials != null && credentials instanceof UsernamePasswordCredentialsImpl) {
-							UsernamePasswordCredentialsImpl usernamePassword = (UsernamePasswordCredentialsImpl) credentials;
-							String userName = usernamePassword.getUsername();
-							String password = usernamePassword.getPassword().getPlainText();
-							return getBase64EncodedCreds(userName, password);
-						}
-					}
-				}
-			}
-		}
-		return base64EncodedToken;
-	}
-
-	private static String getBase64EncodedCreds(String userName, String password) {
-		return Base64.getEncoder().encodeToString((userName + ":" + password).getBytes(Charset.forName("UTF-8")));
-	}
-
-	private String getCredentials(String credentialsId, String userId, AbstractProject<?, ?> buildProject) {
-		String base64EncodedToken = "";
-		if (StringUtils.isNotBlank(credentialsId)) {
-			StandardCredentials creds = CredentialsMatchers
-					.firstOrNull(
-							CredentialsProvider.lookupCredentials(StandardCredentials.class, Jenkins.get(), ACL.SYSTEM,
-									Collections.<DomainRequirement>emptyList()),
-							CredentialsMatchers.withId(credentialsId));
-			if (creds instanceof UsernamePasswordCredentialsImpl) {
-				UsernamePasswordCredentialsImpl usernamePassword = (UsernamePasswordCredentialsImpl) creds;
-				String userName = usernamePassword.getUsername();
-				String password = usernamePassword.getPassword().getPlainText();
-				return getBase64EncodedCreds(userName, password);
-			}
-		}
-		return base64EncodedToken;
-	}
-
 	@Symbol("sec1Security")
 	@Extension
 	public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
@@ -451,18 +451,6 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 			super(SecOneScannerPlugin.class);
 		}
 
-		@Inject
-		private UserRemoteConfig.DescriptorImpl delegate;
-
-		@POST
-		public ListBoxModel doFillCredentialsIdItems(@AncestorInPath Item project, @QueryParameter String scmUrl,
-				@QueryParameter String credentialsId) {
-			if (project != null && !project.hasPermission(Item.CONFIGURE)) {
-				return new ListBoxModel();
-			}
-			return delegate.doFillCredentialsIdItems(project, scmUrl, credentialsId);
-		}
-
 		@Override
 		public boolean isApplicable(Class<? extends AbstractProject> aClass) {
 			return true;
@@ -470,22 +458,8 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 
 		@Override
 		public String getDisplayName() {
-			return "Execute Sec1 Security Scanner";
+			return "Execute Sec1 Security Scan";
 		}
-	}
-
-	private boolean isValidUrl(String url) {
-		if (StringUtils.isNotBlank(url)) {
-			try {
-				new URL(url).toURI();
-				return true;
-			} catch (MalformedURLException e) {
-				return false;
-			} catch (URISyntaxException e) {
-				return false;
-			}
-		}
-		return false;
 	}
 
 	private String getSubUrl(String scmUrl) throws MalformedURLException {
@@ -497,5 +471,110 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 					+ String.valueOf(apiUrl.getPort()).length() + 1;
 		}
 		return StringUtils.substring(scmUrl, subUrlLocation);
+	}
+
+	private String getGitWorkingDirectory(AbstractBuild<?, ?> build, TaskListener listener) throws AbortException {
+		try {
+			EnvVars envVars = build.getEnvironment(listener);
+			return envVars.get("WORKSPACE");
+		} catch (IOException | InterruptedException e) {
+			throw new AbortException("Issue while accessing workspace. Failing the build.");
+		}
+	}
+
+	private HttpResponse scanFiles(String apiUrl, List<File> fileList, String requestParameter, String sec1ApiKey) {
+
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+		headers.set(API_KEY_HEADER, sec1ApiKey);
+
+		MultipartEntityBuilder multipartBodyBuilder = ObjectInitializer.getMultipartBodyBuilder();
+
+		multipartBodyBuilder.addTextBody("request", requestParameter);
+
+		for (File file : fileList) {
+			multipartBodyBuilder.addBinaryBody("file", file);
+		}
+
+		org.apache.http.HttpEntity multipartBody = multipartBodyBuilder.build();
+		HttpPost httpPost = ObjectInitializer.getHttpPost();
+		httpPost.addHeader(API_KEY_HEADER, sec1ApiKey);
+		httpPost.setEntity(multipartBody);
+		httpPost.setURI(URI.create(apiUrl));
+		HttpClient client = ObjectInitializer.getClient();
+		try {
+			HttpResponse response = client.execute(httpPost);
+			return response;
+		} catch (IOException e) {
+			logger.error("Issue while connecting to api.", e);
+		}
+		return null;
+	}
+
+	private List<File> findFilesInDirectory(String directoryPath, List<String> targetFileNames) {
+		List<File> matchingFiles = new ArrayList<>();
+
+		File directory = new File(directoryPath);
+		File[] files = directory.listFiles();
+
+		if (files != null) {
+			for (File file : files) {
+				if (file.isFile() && targetFileNames.contains(file.getName())) {
+					matchingFiles.add(file);
+				}
+			}
+		}
+		return matchingFiles;
+	}
+
+	public String getGitUrl(String repositoryPath) throws IOException {
+		String gitConfigPath = repositoryPath + File.separator + ObjectInitializer.getConfigPath();
+
+		/*
+		 * if (!Path.of(gitConfigPath).toFile().exists()) { return null; }
+		 */
+
+		try (BufferedReader reader = new BufferedReader(new FileReader(gitConfigPath, StandardCharsets.UTF_8))) {
+			String line;
+			boolean inRemoteSection = false;
+
+			while ((line = reader.readLine()) != null) {
+				if (line.trim().equals("[remote \"origin\"]")) {
+					inRemoteSection = true;
+				}
+				if (inRemoteSection && line.trim().startsWith("url")) {
+					String[] parts = line.split("=");
+					if (parts.length == 2) {
+						String rawUrl = parts[1].trim();
+						return removeCredentialsFromGitUrl(rawUrl);
+					}
+				}
+				if (inRemoteSection && line.trim().startsWith("[") && !line.trim().equals("[remote \"origin\"]")) {
+					break;
+				}
+			}
+		} catch (IOException e) {
+			throw e;
+		}
+		return null;
+	}
+
+	public String getGitFolderConfigPath() {
+		return ".git" + File.separator + "config";
+	}
+
+	private String removeCredentialsFromGitUrl(String rawUrl) {
+		try {
+			URI uri = new URI(rawUrl);
+			String userInfo = uri.getUserInfo();
+
+			if (userInfo != null) {
+				return rawUrl.replace(userInfo + "@", "");
+			}
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		}
+
+		return rawUrl;
 	}
 }

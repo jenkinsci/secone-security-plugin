@@ -10,11 +10,14 @@
 
 	<groupId>io.jenkins.plugins</groupId>
 	<artifactId>secone-security</artifactId>
-	<version>${revision}${changelist}</version>
+	<version>${changelist}</version>
 	<packaging>hpi</packaging>
 
-	<name>secone-security</name>
-	<description>Sec1 Security Jenkins plugin for foss scanning</description>
+	<name>Sec1 Security</name>
+	<description>Integrating the Sec1 Security plugin allows developers and
+		teams to enhance the security of their software projects by scanning
+		Source Code Management (SCM) repositories for open-source
+		vulnerabilities against the Sec1 Security Database</description>
 	<licenses>
 		<license>
 			<name>Apache-2.0</name>
@@ -35,8 +38,7 @@
 		<!-- Baseline Jenkins version you use to build the plugin. -->
 		<!-- Users must have this version or newer to run. -->
 		<jenkins.version>2.414.3</jenkins.version>
-		<revision>1.0.1</revision>
-		<changelist>-SNAPSHOT</changelist>
+		<changelist>999999-SNAPSHOT</changelist>
 		<gitHubRepo>jenkinsci/secone-security-plugin</gitHubRepo>
 	</properties>
 
@@ -64,7 +66,13 @@
 			<groupId>org.jenkins-ci.plugins.workflow</groupId>
 			<artifactId>workflow-job</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-core</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
+
 	<repositories>
 		<repository>
 			<id>repo.jenkins-ci.org</id>
