@@ -2,8 +2,6 @@
 
 [![Sec1](https://sec1.io/wp-content/uploads/2024/01/rounded-logo-sec1-git.png)](https://sec1.io)
 
-Jenkins Version 2.439
-
 ## Introduction
 
 Sec1 Security plugin help developers/teams to scan their SCM for open source vulnerabilities against Sec1 Security DB
