@@ -1,6 +1,6 @@
 # Sec1 Security
 
-[![Sec1](https://sec1.io/wp-content/uploads/2024/01/rounded-logo-sec1-git.png)](https://sec1.io)
+[![Sec1](https://digitalassets.sec1.io/sec1-logo-512x512.png)](https://sec1.io)
 
 ## Introduction
 
@@ -22,12 +22,12 @@ To use the plugin up you will need to take the following steps in order:
 ### Custom API Endpoints
 
 By default, Sec1 uses the https://api.sec1.io endpoint. 
-It is possible to configure Sec1 to use a different endpoint by changing the `SEC1_API_ENDPOINT` environment variable:
+It is possible to configure Sec1 to use a different endpoint by changing the `SEC1_INSTANCE_URL` environment variable:
 
 - Go to "Manage Jenkins" > "System Configuration" -> "System"
 - Under "Global properties" check the "Environment variables" option
 - Click "Add"
-- Set the name to `SEC1_API_ENDPOINT` and the value to the custom endpoint
+- Set the name to `SEC1_INSTANCE_URL` and the value to the custom endpoint
 
 
 ## 2. Configure a Sec1 API Token Credential
@@ -94,20 +94,13 @@ pipeline {
     stage('Sec1 Security') {
             steps {
                 script {
-                    //Prepare your credentials which will be used to access the SCM url given to scanner
-                    //This is optional if your SCM url is public
-                    def creds
-                    withCredentials([usernamePassword(credentialsId: 'CRED-ID', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-                      creds = "${USERNAME}:${PASSWORD}"
-                    }
                     sec1Security (
-                        scmUrl: "<SCMURL>", 
-                        scm: "<type-of-scm>", //e.g. github
-                        accessToken: creds, //you can skip withCredentials and credentialsId as accessToken will take precedence over both
-                        credentialsId: "CRED-ID", //if you pass this then you can skip above withCredentials section
+                        scanFileLocation: "${WORKSPACE}", // this is the location of you scm checkout directory. if not configured don't change it.
+                        apiCredentialsId: "<Your Sec1 Api Key ID>", 
+                        //optional
                         applyThreshold: true,
-                        threshold: [criticalThreshold: '0', highThreshold: '10'],
-                        actionOnThresholdBreached: "unstable" //possible values are fail,unstable,continue. default: fail
+                        actionOnThresholdBreached: "unstable",
+                        threshold: [criticalThreshold: '0', highThreshold: '0']
                     )
                 }
             }
@@ -126,25 +119,15 @@ pipeline {
 Whether the step should fail if issues and vulnerabilities are found.
 You can pass the following parameters to your `sec1Security` step.
 
-#### `scmUrl` (required)
+#### `scanFileLocation` (required, default: `${WORKSPACE}`)
 
-Source code url which you want to scan for vulnerabilities.
+Location where scm checkout is done. Default is `${WORKSPACE}` of build job.
 
-Note: If you want to scan public url then don't pass accessToken and credentialsId.
+Scan will fill if you dont provide this value.
 
-#### `scm` (optional, default: `github`)
+#### `apiCredentialsId` (optional, default: *none*)
 
-Type of the scm. e.g. github/bitbucket/gitlab
-
-#### `scm` (optional, default: `github`)
-
-Type of the scm. e.g. github/bitbucket/gitlab
-
-#### `credentialsId` (optional, default: *none*)
-
-Credentials ID which is configured in Jenkins store which has access on given SCM url
-
-If no accessToken or credentialsId given then credentils configured against the given SCM in users current pipelne config will be used.
+Sec1 Api Key Credential ID. As configured in "[2. Configure a Sec1 API Token Credential](#2-configure-a-sec1-api-token-credential)".
 
 #### `applyThreshold` (optional, default: `false`)
 
