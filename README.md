@@ -1,6 +1,6 @@
 # Sec1 Security
 
-[![Sec1](https://digitalassets.sec1.io/sec1-logo-512x512.png)](https://sec1.io)
+[![Sec1](https://digitalassets.sec1.io/sec1-logo.svg)](https://sec1.io)
 
 ## Introduction
 
