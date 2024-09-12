@@ -21,8 +21,10 @@ import java.net.URISyntaxException;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.junit.After;
 import org.junit.Before;
@@ -49,7 +51,7 @@ import hudson.model.BuildListener;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.util.Secret;
-import io.jenkins.plugins.secone.security.object.initializer.ObjectInitializer;
+import io.jenkins.plugins.secone.security.object.factory.ObjectFactory;
 import io.jenkins.plugins.secone.security.pojo.Threshold;
 import jenkins.model.Jenkins;
 
@@ -84,9 +86,11 @@ public class SecOneScannerPluginTest {
 	@Mock
 	private org.apache.http.HttpEntity httpEntity;
 
+	@Mock
+	private ObjectFactory objectFactory;
+
 	private static MockedStatic<Jenkins> mockedJenkins;
 	private static MockedStatic<CredentialsProvider> mockedCredentialsProvider;
-	private static MockedStatic<ObjectInitializer> mockedCustomHttpPost;
 
 	private static String WORKSPACE_DIRECTORY_LOCATION;
 
@@ -99,10 +103,9 @@ public class SecOneScannerPluginTest {
 
 		sampleReportStream = new FileInputStream(WORKSPACE_DIRECTORY_LOCATION + "/sampleapp-report.txt");
 
-		plugin = new SecOneScannerPlugin("customCredentialsId");
+		plugin = new SecOneScannerPlugin("customCredentialsId", objectFactory);
 		when(taskListener.getLogger()).thenReturn(mock(PrintStream.class));
 		mockJenkkins();
-		mockedCustomHttpPost = mockStatic(ObjectInitializer.class);
 		mock(RestTemplate.class);
 	}
 
@@ -110,7 +113,6 @@ public class SecOneScannerPluginTest {
 	public void close() {
 		mockedJenkins.close();
 		mockedCredentialsProvider.close();
-		mockedCustomHttpPost.close();
 	}
 
 	@Test
@@ -196,24 +198,24 @@ public class SecOneScannerPluginTest {
 		headers.set("sec1-api-key", "testApiKey");
 
 		RestTemplate restTemplate = mock(RestTemplate.class);
-		when(ObjectInitializer.getRestTemplate()).thenReturn(restTemplate);
+		when(objectFactory.createRestTemplate()).thenReturn(restTemplate);
 
 		when(restTemplate.exchange(eq(manifestUrl), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
 				.thenReturn(responseEntity);
 
 		MultipartEntityBuilder multipartBodyBuilder = mock(MultipartEntityBuilder.class);
-		when(ObjectInitializer.getMultipartBodyBuilder()).thenReturn(multipartBodyBuilder);
+		when(objectFactory.createMultipartBodyBuilder()).thenReturn(multipartBodyBuilder);
 
 		when(multipartBodyBuilder.build()).thenReturn(httpEntity);
 
 		HttpPost httpPost = mock(HttpPost.class);
 
-		when(ObjectInitializer.getHttpPost()).thenReturn(httpPost);
+		when(objectFactory.createHttpPost(anyString())).thenReturn(httpPost);
 
-		HttpResponse httpResponse = mock(HttpResponse.class);
+		CloseableHttpResponse httpResponse = mock(CloseableHttpResponse.class);
 
-		HttpClient client = mock(HttpClient.class);
-		when(ObjectInitializer.getClient()).thenReturn(client);
+		CloseableHttpClient client = mock(CloseableHttpClient.class);
+		when(objectFactory.createHttpClient()).thenReturn(client);
 
 		when(client.execute(httpPost)).thenReturn(httpResponse);
 
@@ -225,7 +227,7 @@ public class SecOneScannerPluginTest {
 
 		when(httpEntity.getContent()).thenReturn(sampleReportStream);
 
-		when(ObjectInitializer.getConfigPath()).thenReturn("config");
+		when(objectFactory.getGitFolderConfigPath()).thenReturn("config");
 
 	}
 

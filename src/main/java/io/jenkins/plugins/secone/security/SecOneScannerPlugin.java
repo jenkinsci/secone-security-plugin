@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -19,9 +20,9 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
 import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.json.JSONArray;
@@ -46,16 +47,20 @@ import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
+import hudson.Plugin;
+import hudson.XmlFile;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.BuildListener;
+import hudson.model.Job;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
-import io.jenkins.plugins.secone.security.object.initializer.ObjectInitializer;
+import io.jenkins.plugins.secone.security.object.factory.ObjectFactory;
 import io.jenkins.plugins.secone.security.pojo.Threshold;
+import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
 
 public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
@@ -83,9 +88,14 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 
 	private Threshold threshold;
 
+	private boolean printInAnsiColor;
+
+	private ObjectFactory objectFactory;
+
 	@DataBoundConstructor
-	public SecOneScannerPlugin(String apiCredentialsId) {
+	public SecOneScannerPlugin(String apiCredentialsId, ObjectFactory objectFactory) {
 		this.apiCredentialsId = apiCredentialsId;
+		this.objectFactory = objectFactory;
 	}
 
 	public String getApiCredentialsId() {
@@ -135,11 +145,14 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 	// from UI
 	@Override
 	public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws AbortException {
-		printStartMessage(listener);
-
+		// printStartMessage(listener);
 		if (threshold != null) {
 			applyThreshold = true;
 		}
+		if (objectFactory == null) {
+			objectFactory = new ObjectFactory();
+		}
+		printInAnsiColor = isAnsiColorPluginInstalled(build.getParent());
 		String workingDirectory = getGitWorkingDirectory(build, listener);
 		int result = performScan(build, listener, applyThreshold, workingDirectory);
 		if (result != 0) {
@@ -150,11 +163,11 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 	}
 
 	private void printStartMessage(TaskListener listener) {
-		listener.getLogger().println("**************Sec1 Security scan start**************");
+		printLogs(listener.getLogger(), "**************Sec1 SCA scan start**************", "g");
 	}
 
 	private void printEndMessage(TaskListener listener) {
-		listener.getLogger().println("**************Sec1 Security scan end**************");
+		printLogs(listener.getLogger(), "**************Sec1 SCA scan end**************", "g");
 	}
 
 	private String getInstanceUrl(EnvVars envVars, TaskListener listener) {
@@ -163,8 +176,9 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 			listener.getLogger().println("SEC1_INSTANCE_URL : " + instanceUrl);
 			return instanceUrl;
 		}
-		listener.getLogger()
-				.println("No environment variable SEC1_INSTANCE_URL set. Using default : https://api.sec1.io");
+		// listener.getLogger()
+		// .println("No environment variable SEC1_INSTANCE_URL set. Using default :
+		// https://api.sec1.io");
 		return "https://api.sec1.io";
 	}
 
@@ -173,14 +187,14 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 	public void perform(Run<?, ?> run, FilePath workspace, EnvVars env, Launcher launcher, TaskListener listener)
 			throws InterruptedException, IOException {
 
-		printStartMessage(listener);
+		printInAnsiColor = isAnsiColorPluginInstalled(run.getParent());
 
 		if (StringUtils.isBlank(scanFileLocation)) {
-			throw new AbortException("scanFileLocation not configured. Please check your configuration.");
+			printLogs(listener.getLogger(), "scanFileLocation not configured. Please check your configuration.", "r");
 		}
 
 		if (StringUtils.isBlank(actionOnThresholdBreached)) {
-			listener.getLogger().println("actionOnThresholdBreached is not set. Default action is fail.");
+			printLogs(listener.getLogger(), "actionOnThresholdBreached is not set. Default action is fail.", "g");
 		} else if (StringUtils.equalsIgnoreCase(actionOnThresholdBreached, "fail")
 				|| StringUtils.equalsIgnoreCase(actionOnThresholdBreached, "unstable")
 				|| StringUtils.equalsIgnoreCase(actionOnThresholdBreached, "continue")) {
@@ -188,6 +202,7 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 				getThreshold().setStatusAction(actionOnThresholdBreached);
 			}
 		}
+
 		int result = performScan(run, listener, applyThreshold, scanFileLocation);
 		if (result != 0) {
 			run.setResult(Result.UNSTABLE);
@@ -197,14 +212,14 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 
 	public String getApiKey(Run<?, ?> run, TaskListener listener) {
 		if (StringUtils.isNotBlank(apiCredentialsId)) {
-			listener.getLogger().println("Finding api key for credendials id : " + apiCredentialsId);
+			printLogs(listener.getLogger(), "Finding api key for credendials id : " + apiCredentialsId, "g");
 
 			StringCredentials apiKeyCreds = CredentialsProvider.findCredentialById(apiCredentialsId,
 					StringCredentials.class, run, Collections.emptyList());
 
 			if (apiKeyCreds == null) {
-				listener.getLogger().println("Credentials id not found : " + apiCredentialsId);
-				listener.getLogger().println("Finding api key for default credendials id : " + API_KEY);
+				printLogs(listener.getLogger(), "Credentials id not found : " + apiCredentialsId, "g");
+				printLogs(listener.getLogger(), "Finding api key for default credendials id : " + API_KEY, "g");
 				apiKeyCreds = CredentialsProvider.findCredentialById(API_KEY, StringCredentials.class, run,
 						Collections.emptyList());
 			}
@@ -213,7 +228,8 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 				return apiKey;
 			}
 		} else {
-			listener.getLogger().println("No Credentials Id confgured, using default credendials id : " + API_KEY);
+			printLogs(listener.getLogger(), "No Credentials Id confgured, using default credendials id : " + API_KEY,
+					"g");
 			StringCredentials apiKeyCreds = CredentialsProvider.findCredentialById(API_KEY, StringCredentials.class,
 					run, Collections.emptyList());
 			if (apiKeyCreds != null) {
@@ -232,10 +248,13 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 
 	private int performScan(Run<?, ?> run, TaskListener listener, boolean applyThreshold, String workingDirectory)
 			throws AbortException {
+
+		printStartMessage(listener);
+
 		String sec1ApiKey = getApiKey(run, listener);
 
 		if (StringUtils.isBlank(sec1ApiKey)) {
-			throw new AbortException("API Key not configured. Please check your configuration.");
+			throw new AbortException(getErrorMessageInAnsi("API Key not configured. Please check your configuration."));
 		}
 
 		StringBuilder fossInstanceUrl = new StringBuilder();
@@ -243,18 +262,19 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		try {
 			fossInstanceUrl.append(getInstanceUrl(run.getEnvironment(listener), listener));
 		} catch (IOException | InterruptedException e) {
-			throw new AbortException("Exception while getting environment variables.");
+			throw new AbortException(getErrorMessageInAnsi("Exception while getting environment variables."));
 		}
 
 		try {
 			String gitUrl = getGitUrl(workingDirectory);
 			if (StringUtils.isBlank(gitUrl)) {
-				throw new AbortException(
-						"No valid manifest found in working directory. Please check your configuration.");
+				throw new AbortException(getErrorMessageInAnsi(
+						"No valid manifest found in working directory. Please check your configuration."));
 			}
 			scmUrl.append(gitUrl);
 		} catch (IOException e) {
-			throw new AbortException("Exception while getting getting scm url from .git folder of workspace.");
+			throw new AbortException(
+					getErrorMessageInAnsi("Exception while getting getting scm url from .git folder of workspace."));
 		}
 
 		String scanUrl = fossInstanceUrl + API_CONTEXT + SCAN_API;
@@ -275,10 +295,11 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		if (!CollectionUtils.isEmpty(supportedManifestList)) {
 
 			List<File> scanFileList = findFilesInDirectory(workingDirectory, supportedManifestList);
-			// logMessage("Files to be scanned : " + scanFileList);
+			listener.getLogger().println("Files to be scanned : " + scanFileList);
 			if (CollectionUtils.isEmpty(scanFileList)) {
 				throw new AbortException(
-						"No supported manifest found. Supported manifest list : " + supportedManifestList);
+						getErrorMessageInAnsi("No supported manifest found. Supported manifest list : ")
+								+ supportedManifestList);
 			}
 
 			JSONObject inputParamsMap = new JSONObject();
@@ -287,7 +308,7 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 			inputParamsMap.put("source", "jenkins");
 			inputParamsMap.put("dirScan", true);
 
-			listener.getLogger().println("==================== SEC1 SCAN CONFIG ====================");
+			listener.getLogger().println("==================== SEC1 SCA SCAN CONFIG ====================");
 			listener.getLogger().println("SCM Url                " + scmUrl);
 			listener.getLogger().println("Threshold Enabled      " + applyThreshold);
 			if (threshold != null && applyThreshold) {
@@ -304,7 +325,6 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 			}
 
 			HttpResponse responseEntity = scanFiles(scanUrl, scanFileList, inputParamsMap.toString(), sec1ApiKey);
-
 			if (responseEntity != null && responseEntity.getStatusLine().getStatusCode() == 200) {
 				try {
 					if (responseEntity.getEntity() != null) {
@@ -329,7 +349,7 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 										: 0;
 
 								listener.getLogger()
-										.println("==================== SEC1 SCAN RESULT ====================");
+										.println("==================== SEC1 SCA SCAN RESULT ====================");
 								if (StringUtils.isBlank(responseJson.optString("errorMessage"))) {
 									listener.getLogger().println("Vulnerabilities Found  " + "Critical " + critical
 											+ "," + " High " + high + "," + " Medium " + medium + "," + " Low " + low);
@@ -368,28 +388,55 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 										}
 									}
 								} else {
-									listener.error("Error Details : " + responseJson.optString("errorMessage"));
+									printLogs(listener.getLogger(),
+											"Error Details : " + responseJson.optString("errorMessage"), "r");
 									result = 2;
 								}
 							}
 						} else {
 							logger.info("Invalid content recevied");
-							throw new AbortException("Error while processing scan result. Failing the build.");
+							throw new AbortException(
+									getErrorMessageInAnsi("Error while processing scan result. Failing the build."));
 						}
 					}
 				} catch (IOException ex) {
-					logger.info("", ex);
-					throw new AbortException("Error while processing scan result. Failing the build.");
+					// throw new AbortException(ex.getMessage());
+					throw new AbortException(getErrorMessageInAnsi(
+							"Attention: Build Failed because of vulnerability threshold level breached."));
 				}
 			} else {
 				logger.error("Issue while getting response from system.");
-				throw new AbortException("Error while processing scan result. Failing the build.");
+				throw new AbortException(
+						getErrorMessageInAnsi("Error while processing scan result. Failing the build."));
 			}
 		} else {
 			throw new AbortException(
-					"No supported manifest list found. Check you connectivity with Sec1 Api : " + fossInstanceUrl);
+					getErrorMessageInAnsi("No supported manifest list found. Check you connectivity with Sec1 Api : ")
+							+ fossInstanceUrl);
 		}
 		return result;
+	}
+
+	private void printLogs(PrintStream logger, String message, String color) {
+		if (printInAnsiColor) {
+			if (StringUtils.isNotBlank(color)) {
+				switch (color) {
+				case "g":
+					logger.println("\u001B[32m" + message + "\u001B[0m");
+					break;
+				case "r":
+					logger.println("\u001B[31m" + message + "\u001B[0m");
+					break;
+				default:
+					logger.println(message);
+					break;
+				}
+			} else {
+				logger.println(message);
+			}
+		} else {
+			logger.println(message);
+		}
 	}
 
 	private List<String> getSupportedManifest(String apiUrl, String apiKey, TaskListener listener)
@@ -400,18 +447,24 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		HttpEntity<?> entity = new HttpEntity<>(headers);
 
 		try {
-			RestTemplate restTemplate = ObjectInitializer.getRestTemplate();
+			RestTemplate restTemplate = objectFactory.createRestTemplate();
 			ResponseEntity<String> manifestResponseEntity = restTemplate.exchange(apiUrl, HttpMethod.GET, entity,
 					String.class);
 			JSONObject responseJson = new JSONObject(manifestResponseEntity.getBody());
 			return parseJsonToDataList(responseJson);
 		} catch (HttpClientErrorException e) {
-			listener.error(e.getResponseBodyAsString());
-			throw new AbortException("Check your API Key. Failing the build.");
+			throw new AbortException(getErrorMessageInAnsi(e.getResponseBodyAsString()));
 		} catch (Exception ex) {
 			listener.error("" + ex);
-			throw new AbortException("Error while scanning the application. Failing the build.");
+			throw new AbortException(getErrorMessageInAnsi("Error while scanning the application. Failing the build."));
 		}
+	}
+
+	private String getErrorMessageInAnsi(String message) {
+		if (printInAnsiColor) {
+			return "\u001B[31m" + message + "\u001B[0m";
+		}
+		return message;
 	}
 
 	private List<String> parseJsonToDataList(JSONObject jsonObject) {
@@ -431,7 +484,7 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 			if (StringUtils.equalsIgnoreCase(threshold.getStatusAction(), "fail")) {
 				throw new AbortException(message + " Failing the build.");
 			} else if (StringUtils.equalsIgnoreCase(threshold.getStatusAction(), "unstable")) {
-				listener.getLogger().println(message);
+				printLogs(listener.getLogger(), message, "r");
 				return 2;
 			} else {
 				listener.getLogger().println(message);
@@ -478,7 +531,7 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 			EnvVars envVars = build.getEnvironment(listener);
 			return envVars.get("WORKSPACE");
 		} catch (IOException | InterruptedException e) {
-			throw new AbortException("Issue while accessing workspace. Failing the build.");
+			throw new AbortException(getErrorMessageInAnsi("Issue while accessing workspace. Failing the build."));
 		}
 	}
 
@@ -488,7 +541,7 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 		headers.set(API_KEY_HEADER, sec1ApiKey);
 
-		MultipartEntityBuilder multipartBodyBuilder = ObjectInitializer.getMultipartBodyBuilder();
+		MultipartEntityBuilder multipartBodyBuilder = objectFactory.createMultipartBodyBuilder();
 
 		multipartBodyBuilder.addTextBody("request", requestParameter);
 
@@ -497,11 +550,10 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		}
 
 		org.apache.http.HttpEntity multipartBody = multipartBodyBuilder.build();
-		HttpPost httpPost = ObjectInitializer.getHttpPost();
+		HttpPost httpPost = objectFactory.createHttpPost(apiUrl);
 		httpPost.addHeader(API_KEY_HEADER, sec1ApiKey);
 		httpPost.setEntity(multipartBody);
-		httpPost.setURI(URI.create(apiUrl));
-		HttpClient client = ObjectInitializer.getClient();
+		CloseableHttpClient client = objectFactory.createHttpClient();
 		try {
 			HttpResponse response = client.execute(httpPost);
 			return response;
@@ -528,7 +580,7 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 	}
 
 	public String getGitUrl(String repositoryPath) throws IOException {
-		String gitConfigPath = repositoryPath + File.separator + ObjectInitializer.getConfigPath();
+		String gitConfigPath = repositoryPath + File.separator + objectFactory.getGitFolderConfigPath();
 
 		/*
 		 * if (!Path.of(gitConfigPath).toFile().exists()) { return null; }
@@ -576,5 +628,22 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		}
 
 		return rawUrl;
+	}
+
+	private boolean isAnsiColorPluginInstalled(Job<?, ?> job) {
+		Plugin plugin = Jenkins.get().getPlugin("ansicolor");
+		if (plugin != null && plugin.getWrapper().isEnabled()) {
+			XmlFile config = job.getConfigFile();
+			try {
+				String configString = config.asString();
+				if (StringUtils.isNotBlank(configString)
+						&& StringUtils.contains(configString, "hudson.plugins.ansicolor.AnsiColorBuildWrapper")) {
+					return true;
+				}
+			} catch (Exception ex) {
+				return false;
+			}
+		}
+		return false;
 	}
 }
