@@ -553,8 +553,7 @@ public class SecOneScannerPlugin extends Builder implements SimpleBuildStep {
 		HttpPost httpPost = objectFactory.createHttpPost(apiUrl);
 		httpPost.addHeader(API_KEY_HEADER, sec1ApiKey);
 		httpPost.setEntity(multipartBody);
-		CloseableHttpClient client = objectFactory.createHttpClient();
-		try {
+		try (CloseableHttpClient client = objectFactory.createHttpClient()){
 			HttpResponse response = client.execute(httpPost);
 			return response;
 		} catch (IOException e) {
